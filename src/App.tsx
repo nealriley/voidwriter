@@ -396,6 +396,7 @@ function SpaceInvadersApp() {
   const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
   const [typingParticles, setTypingParticles] = useState<TypingParticle[]>([]);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback[]>([]);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [textBuffer, setTextBuffer] = useState<string[]>(() => {
     // Load saved buffer from localStorage
     const saved = localStorage.getItem('voidwriter-session');
@@ -436,6 +437,7 @@ function SpaceInvadersApp() {
   const emergencySaveTriggeredRef = useRef(false);
   const lastWordAddedTimeRef = useRef(Date.now());
   const autoCleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const instructionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const findNextPosition = useCallback((existingWords: Word[]) => {
     const occupied = new Set(
@@ -886,6 +888,33 @@ function SpaceInvadersApp() {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle instruction text display
+  useEffect(() => {
+    // Clear any existing timer
+    if (instructionTimerRef.current) {
+      clearTimeout(instructionTimerRef.current);
+      instructionTimerRef.current = null;
+    }
+
+    // Check if we should show instructions
+    if (textBuffer.length === 0 && words.length === 0 && !currentWord) {
+      // Set timer to show instructions after 2 seconds
+      instructionTimerRef.current = setTimeout(() => {
+        setShowInstructions(true);
+      }, 2000);
+    } else {
+      // Hide instructions immediately when typing starts
+      setShowInstructions(false);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (instructionTimerRef.current) {
+        clearTimeout(instructionTimerRef.current);
+      }
+    };
+  }, [textBuffer.length, words.length, currentWord]);
+
   const clearAll = useCallback(() => {
     // Clear auto-cleanup timer
     if (autoCleanupTimerRef.current) {
@@ -1008,6 +1037,44 @@ function SpaceInvadersApp() {
           {feedback.message}
         </div>
       ))}
+      
+      {/* Instruction Text for Empty State */}
+      {showInstructions && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          textAlign: 'center',
+          zIndex: 90,
+          animation: 'instructionFade 4s ease-in-out infinite',
+          pointerEvents: 'none'
+        }}>
+          <div style={{
+            color: '#66ff66',
+            fontSize: '14px',
+            fontFamily: '"Press Start 2P", monospace',
+            textShadow: '0 0 8px rgba(102, 255, 102, 0.5)',
+            marginBottom: '20px',
+            opacity: 0.8,
+            letterSpacing: '1px',
+            lineHeight: '1.8'
+          }}>
+            START TYPING TO BEGIN
+          </div>
+          <div style={{
+            color: '#44cc44',
+            fontSize: '10px',
+            fontFamily: '"Press Start 2P", monospace',
+            textShadow: '0 0 6px rgba(68, 204, 68, 0.4)',
+            opacity: 0.6,
+            letterSpacing: '0.5px',
+            lineHeight: '1.6'
+          }}>
+            WRITE FREELY IN SKYWRITER
+          </div>
+        </div>
+      )}
       
       {/* Arcade-style SCORE display in bottom-right */}
       <div style={{
