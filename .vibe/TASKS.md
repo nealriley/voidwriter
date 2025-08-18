@@ -1,58 +1,69 @@
-# VoidWriter Implementation Tasks
+# VoidWriter Arcade Cabinet Mode - Task Tracker
 
-## Current Sprint: Distraction-Free Writing Core
+## Current Vision
+Transform VoidWriter into an arcade cabinet experience where:
+- The screen appears as an arcade game display
+- Visible hands operate a joystick as you type
+- Words float up like Space Invaders being shot down
+- Session goals and progress tracking like an arcade game
+- Inspired by Chrome's dinosaur game and other playful tech interactions
 
-### Phase 1: Foundation (Active)
-- [x] Create TASKS.md for tracking implementation
-- [x] ~~Implement River Flow positioning system~~ (Too many words disappear)
-- [x] ~~Add graduated opacity/blur system based on word age~~ (Reworking)
-- [x] Remove random positioning entirely
-- [x] ~~Implement Typewriter positioning~~ (Words go off screen)
+## Phase 1: Arcade Cabinet Frame (Active)
+- [x] Create arcade cabinet bezel/frame overlay
+- [x] Add scanlines or CRT effect for retro feel
+- [x] Position game view within cabinet screen
+- [ ] Add cabinet-style UI elements (score, lives, etc.)
 
-### Phase 1.5: Space Invaders Mode v2 (Active)
-- [x] Create bottom "typing zone" for current word buffer
-- [x] Implement "shoot up" animation when word is completed
-- [x] Queue-based word management (no instant clearing)
-- [x] Smooth transitions for all word movements
-- [x] Delayed missile system (1-2 second shots)
-- [x] Multiple rows when typing faster than destroying (6 columns grid)
-- [x] Sequential destruction with proper timing
-- [x] Hit box detection for word destruction
-- [x] Maintain word flow during rapid typing
-- [x] Dynamic missile tracking (follows moving targets)
-- [x] FIFO destruction (oldest words destroyed first)
-- [x] Score system (displays every 10 words)
+## Phase 2: Player Hands & Joystick
+- [x] Create 3D joystick model
+- [x] Create simple 3D hands (low-poly style)
+- [x] Position hands at bottom of screen holding joystick
+- [x] Animate joystick movement when typing
+- [x] Animate button presses on space/punctuation
+- [x] Switch to MST3K-style 2D silhouette overlay
+- [x] Make joystick point toward missile targets
 
-### Phase 2: Focus Enhancement (COMPLETED)
-- [x] Hide all UI elements when typing starts (auto-hide command console)
-- [x] Implement breathing void with subtle expansion/contraction
-- [x] Add typing rhythm particles (minimal, 10-20 max)
-- [x] Create smooth fade-out system for completed words
-- [x] Implement depth of field post-processing (simplified without extra deps)
+## Phase 3: Typing Feedback Animations
+- [ ] Link hand movements to typing rhythm
+- [ ] Joystick moves left/right with word positioning
+- [ ] Button mash animation for rapid typing
+- [ ] Idle animation when not typing
+- [ ] Excitement animation at milestones
 
-### Phase 3: Flow State Features (COMPLETED)
-- [x] Add flow detection based on typing consistency
-- [x] DDR-style color feedback system (Perfect/Great/Good/Miss)
-- [x] Implement vibrant environment response to typing rhythm
-- [x] Add momentum trails for fast typing with color gradients
-- [x] Dynamic background color shifts based on performance
-- [x] Combo counter with color intensity rewards
-- [x] Beat indicators that pulse with typing rhythm
+## Phase 4: Goal & Progress System
+- [ ] Daily word count targets
+- [ ] Session goals (start small: 50, 100, 200 words)
+- [ ] Progress bar arcade-style
+- [ ] "Level up" celebrations
+- [ ] High score tracking
 
-### Phase 4: Polish & Testing (COMPLETED)
-- [x] Optimize performance (simplified rendering)
-- [x] Add emergency save gesture (triple-tap ESC)
-- [x] Implement session recording (tracks all words)
-- [x] Create post-session summary view (on clear)
-- [x] Auto-cleanup last word after 3 seconds of inactivity
-- [ ] Test with actual writers for flow state achievement
+## Phase 5: Polish & Effects
+- [ ] Arcade sound effects (optional/muted by default)
+- [ ] Cabinet lighting effects
+- [ ] "Insert Coin" start screen
+- [ ] Game over/victory screens
+- [ ] Leaderboard for personal bests
 
-## Design Principles (from VISION.md)
-- **Minimal**: Remove all distractions
-- **Predictable**: No sudden movements or changes
-- **Organic**: Natural, flowing animations only
-- **Focused**: Current text sharp, old text fades
-- **Silent**: No metrics or UI during writing
+## Design Principles
+- **Playful**: Make writing feel like playing a game
+- **Motivating**: Clear goals and progress tracking
+- **Non-intrusive**: Animations shouldn't distract from writing
+- **Retro-aesthetic**: Classic arcade cabinet feel
+- **Responsive**: React to user's typing patterns
 
-## Current Focus
-Starting with River Flow positioning to replace random placement. This creates a predictable, meditative flow where words drift away naturally.
+## Technical Approach
+1. Use React Three Fiber for 3D elements
+2. CSS for cabinet frame overlay
+3. Simple geometry for hands/joystick
+4. localStorage for progress tracking
+5. Subtle animations that don't impact performance
+
+## Current Status
+Simplified Game Boy Aesthetic Implementation:
+- ✅ Clean green outline arcade frame
+- ✅ Removed complex joystick code
+- ✅ Pixelated Game Boy style D-pad and buttons
+- ✅ Press Start 2P pixel font for UI
+- ✅ Simplified bottom layout with INPUT/BUFFER on left, SCORE on right
+
+Next: Add interactivity to pixel controls and goal system
