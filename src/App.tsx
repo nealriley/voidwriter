@@ -223,10 +223,12 @@ function WordInGrid({
         color={color}
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
+        outlineWidth={0.015}
         outlineColor={color}
+        letterSpacing={0.15}
+        textAlign="center"
       >
-        {word.text}
+        {word.text.toUpperCase()}
       </Text>
     </animated.group>
   );
@@ -243,10 +245,12 @@ function CurrentTypingWord({ word }: { word: string }) {
         color="#00ff00"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.03}
+        outlineWidth={0.02}
         outlineColor="#00ff00"
+        letterSpacing={0.15}
+        textAlign="center"
       >
-        {word || '_'}
+        {(word || '_').toUpperCase()}
       </Text>
     </group>
   );
@@ -372,11 +376,12 @@ function ScorePopupEffect({
         color="#00ff00"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.035}
+        outlineWidth={0.02}
         outlineColor="#009900"
         fillOpacity={opacity * 0.85}
         outlineOpacity={opacity * 0.85}
         scale={scale}
+        letterSpacing={0.1}
       >
         {`+${popup.score}`}
       </Text>
@@ -457,8 +462,6 @@ function SpaceInvadersApp() {
   }, []);
 
   const addWord = useCallback((text: string) => {
-    console.log(`Adding word: "${text}", Next ID: ${nextWordId}`);
-    
     // Track when this word was added
     lastWordAddedTimeRef.current = Date.now();
     
@@ -469,10 +472,7 @@ function SpaceInvadersApp() {
     }
     
     setWords(prev => {
-      console.log('Previous words:', prev.map(w => ({ id: w.id, text: w.text, destroying: w.isDestroying })));
-      
       const pos = findNextPosition(prev);
-      console.log(`Next position for word "${text}": row=${pos.row}, col=${pos.col}`);
       
       const newWord: Word = {
         id: nextWordId,
@@ -495,14 +495,10 @@ function SpaceInvadersApp() {
           .filter(w => !w.isDestroying && !missileQueueRef.current.includes(w.id));
         
         wordsToDestroy.forEach(word => {
-          console.log(`Queueing word (ID ${word.id}, "${word.text}") for destruction`);
           missileQueueRef.current.push(word.id);
         });
-        
-        console.log(`Queued ${wordsToDestroy.length} words for destruction. Total in queue: ${missileQueueRef.current.length}`);
       }
       
-      console.log('Updated words:', updatedWords.map(w => ({ id: w.id, text: w.text })));
       wordsRef.current = updatedWords; // Keep ref in sync
       return updatedWords;
     });
@@ -529,8 +525,6 @@ function SpaceInvadersApp() {
           score: newBuffer.length,
           position: [randomX, randomY, 0]
         }]);
-        
-        console.log(`Score milestone reached: ${newBuffer.length} words!`);
       }
       
       return newBuffer;
@@ -561,8 +555,6 @@ function SpaceInvadersApp() {
   }, []);
 
   const handleMissileHit = useCallback((wordId: number) => {
-    console.log(`Missile hit word ID: ${wordId}`);
-    
     // Subtle pulse background on missile hit
     setBackgroundPulse(0.6);
     setTimeout(() => setBackgroundPulse(0), 400);
@@ -575,8 +567,6 @@ function SpaceInvadersApp() {
       const startY = viewportHeight / 2 - 2 - viewportHeight * 0.1; // Include 10% shift
       const targetX = (word.targetCol - COLS_PER_ROW / 2 + 0.5) * COL_WIDTH;
       const targetY = startY - word.targetRow * ROW_HEIGHT;
-      
-      console.log(`Creating explosion at position: [${targetX}, ${targetY}, 0]`);
       
       setExplosions(prevExplosions => [...prevExplosions, {
         id: Date.now(),
@@ -593,7 +583,6 @@ function SpaceInvadersApp() {
     });
     
     setTimeout(() => {
-      console.log(`Removing word ID ${wordId} from list`);
       setWords(prev => {
         const filtered = prev.filter(w => w.id !== wordId);
         wordsRef.current = filtered; // Keep ref in sync
@@ -610,14 +599,11 @@ function SpaceInvadersApp() {
       while (missileQueueRef.current.length > 0 && 
              now - lastMissileTimeRef.current > MISSILE_DELAY * 1000) {
         
-        console.log('Missile queue:', missileQueueRef.current);
         const targetWordId = missileQueueRef.current.shift();
         
         if (targetWordId) {
-          console.log(`Processing missile for word ID: ${targetWordId}`);
           // Use the ref instead of state to get the most current words
           const targetWord = wordsRef.current.find(w => w.id === targetWordId);
-          console.log('Target word from ref:', targetWord);
           
           if (targetWord && !targetWord.isDestroying) {
             const viewport = { height: 10, width: 16 };
@@ -632,14 +618,12 @@ function SpaceInvadersApp() {
               wordId: targetWordId
             };
             
-            console.log('Creating missile:', missile);
             setMissiles(prev => [...prev, missile]);
             lastMissileTimeRef.current = now;
             
             // Only process one missile per interval to maintain spacing
             break;
           } else {
-            console.log('Word not found or already destroying, skipping missile');
             // Continue to next word in queue without updating timer
           }
         }
@@ -763,8 +747,6 @@ function SpaceInvadersApp() {
       document.body.removeChild(flash);
       emergencySaveTriggeredRef.current = false;
     }, 300);
-    
-    console.log(`Emergency save: ${filename}`);
   }, [textBuffer]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -856,7 +838,6 @@ function SpaceInvadersApp() {
         if (timeSinceLastWord >= 3000) {
           const lastWord = activeWords[0];
           if (lastWord && !missileQueueRef.current.includes(lastWord.id)) {
-            console.log(`Auto-cleanup: Queueing last word (ID ${lastWord.id}) for destruction`);
             missileQueueRef.current.push(lastWord.id);
           }
         }
@@ -924,23 +905,12 @@ function SpaceInvadersApp() {
     
     // Show session summary before clearing
     if (textBuffer.length > 0) {
-      const avgInterval = typingIntervalsRef.current.length > 0
-        ? typingIntervalsRef.current.reduce((a, b) => a + b, 0) / typingIntervalsRef.current.length
-        : 0;
-      const wpm = avgInterval > 0 ? Math.round(60000 / (avgInterval * 5)) : 0; // Rough WPM estimate
-      
       // Create summary popup
       setScorePopups(prev => [...prev, {
         id: Date.now(),
         score: textBuffer.length * 10, // Total "score"
         position: [0, 0, 0]
       }]);
-      
-      console.log(`Session Summary:
-        Words: ${textBuffer.length}
-        Best Combo: ${performance.combo}
-        Avg Speed: ~${wpm} WPM
-        Performance: ${performance.rating}`);
     }
     
     setCurrentWord('');
@@ -1001,19 +971,21 @@ function SpaceInvadersApp() {
     <div className="app" style={{ background: '#000' }}>
       
       {/* SKYWRITER Logo/Title */}
-      <div style={{
-        position: 'absolute',
-        top: '7%',
-        left: '7%',
-        color: '#00ff00',
-        fontSize: '20px',
-        fontFamily: '"Press Start 2P", monospace',
-        textShadow: '0 0 20px #00ff00, 0 0 40px #00ff00',
-        letterSpacing: '3px',
-        zIndex: 100,
-        animation: 'pulse 2s ease-in-out infinite',
-        imageRendering: 'pixelated'
-      }}>
+      <div 
+        className="pixelated"
+        style={{
+          position: 'absolute',
+          top: '7%',
+          left: '7%',
+          color: '#00ff00',
+          fontSize: '20px',
+          fontFamily: '"Press Start 2P", monospace',
+          textShadow: '0 0 20px #00ff00, 0 0 40px #00ff00',
+          letterSpacing: '3px',
+          zIndex: 100,
+          animation: 'pulse 2s ease-in-out infinite'
+        }}
+      >
         SKYWRITER
       </div>
       
@@ -1021,17 +993,17 @@ function SpaceInvadersApp() {
       {actionFeedback.map(feedback => (
         <div
           key={feedback.id}
+          className="pixelated"
           style={{
             position: 'absolute',
             top: '15%',
-            left: '7%',
+            left: 'calc(7% + 55px)',  // Position to the right of buttons
             color: '#00ff00',
             fontSize: '10px',
             fontFamily: '"Press Start 2P", monospace',
             textShadow: '0 0 10px #00ff00',
             zIndex: 100,
-            animation: 'fadeInOut 2s ease-in-out',
-            imageRendering: 'pixelated'
+            animation: 'fadeInOut 2s ease-in-out'
           }}
         >
           {feedback.message}
@@ -1050,45 +1022,53 @@ function SpaceInvadersApp() {
           animation: 'instructionFade 4s ease-in-out infinite',
           pointerEvents: 'none'
         }}>
-          <div style={{
-            color: '#66ff66',
-            fontSize: '14px',
-            fontFamily: '"Press Start 2P", monospace',
-            textShadow: '0 0 8px rgba(102, 255, 102, 0.5)',
-            marginBottom: '20px',
-            opacity: 0.8,
-            letterSpacing: '1px',
-            lineHeight: '1.8'
-          }}>
+          <div 
+            className="pixelated"
+            style={{
+              color: '#66ff66',
+              fontSize: '14px',
+              fontFamily: '"Press Start 2P", monospace',
+              textShadow: '0 0 8px rgba(102, 255, 102, 0.5)',
+              marginBottom: '20px',
+              opacity: 0.8,
+              letterSpacing: '1px',
+              lineHeight: '1.8'
+            }}
+          >
             START TYPING TO BEGIN
           </div>
-          <div style={{
-            color: '#44cc44',
-            fontSize: '10px',
-            fontFamily: '"Press Start 2P", monospace',
-            textShadow: '0 0 6px rgba(68, 204, 68, 0.4)',
-            opacity: 0.6,
-            letterSpacing: '0.5px',
-            lineHeight: '1.6'
-          }}>
+          <div 
+            className="pixelated"
+            style={{
+              color: '#44cc44',
+              fontSize: '10px',
+              fontFamily: '"Press Start 2P", monospace',
+              textShadow: '0 0 6px rgba(68, 204, 68, 0.4)',
+              opacity: 0.6,
+              letterSpacing: '0.5px',
+              lineHeight: '1.6'
+            }}
+          >
             WRITE FREELY IN SKYWRITER
           </div>
         </div>
       )}
       
       {/* Arcade-style SCORE display in bottom-right */}
-      <div style={{
-        position: 'absolute',
-        bottom: '7%',
-        right: '7%',
-        color: '#00ff00',
-        fontSize: '8px',
-        fontFamily: '"Press Start 2P", monospace',
-        textShadow: '2px 2px 0 #005500',
-        letterSpacing: '0px',
-        zIndex: 100,
-        imageRendering: 'pixelated'
-      }}>
+      <div 
+        className="pixelated"
+        style={{
+          position: 'absolute',
+          bottom: '7%',
+          right: '7%',
+          color: '#00ff00',
+          fontSize: '8px',
+          fontFamily: '"Press Start 2P", monospace',
+          textShadow: '2px 2px 0 #005500',
+          letterSpacing: '0px',
+          zIndex: 100
+        }}
+      >
         <div style={{ fontSize: '8px', opacity: 0.7, marginBottom: '8px' }}>SCORE</div>
         <div style={{ fontSize: '12px' }}>
           {String(textBuffer.length * 100).padStart(6, '0')}
@@ -1096,20 +1076,22 @@ function SpaceInvadersApp() {
       </div>
       
       {/* Combined INPUT and WORDS display in bottom-left */}
-      <div style={{
-        position: 'absolute',
-        bottom: '7%',
-        left: '7%',
-        color: '#00ff00',
-        fontSize: '8px',
-        fontFamily: '"Press Start 2P", monospace',
-        textShadow: '2px 2px 0 #005500',
-        letterSpacing: '0px',
-        zIndex: 100,
-        display: 'flex',
-        gap: '40px',
-        imageRendering: 'pixelated'
-      }}>
+      <div 
+        className="pixelated"
+        style={{
+          position: 'absolute',
+          bottom: '7%',
+          left: '7%',
+          color: '#00ff00',
+          fontSize: '8px',
+          fontFamily: '"Press Start 2P", monospace',
+          textShadow: '2px 2px 0 #005500',
+          letterSpacing: '0px',
+          zIndex: 100,
+          display: 'flex',
+          gap: '40px'
+        }}
+      >
         {/* Current Input */}
         <div>
           <div style={{ fontSize: '8px', opacity: 0.7, marginBottom: '8px' }}>INPUT</div>

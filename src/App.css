@@ -17,8 +17,15 @@
   position: relative;
 }
 
-/* Pixel font import */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+/* Pixel font optimizations for crisp rendering */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+}
 
 /* ===== Arcade Cabinet Frame ===== */
 .arcade-cabinet {
