@@ -6,12 +6,14 @@
  * - Provides /api/complete endpoint to receive user input
  * - Handles browser opening and cleanup
  * - Returns captured text as JSON to stdout
+ * - Full logging and error tracking
  */
 
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import Logger from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,21 +25,52 @@ let serverResolve = null;
 let server = null;
 let uiConfig = {};
 let saveConfig = { mode: 'return', path: null };
+let logger = null;
 
 // Middleware
 app.use(express.json());
+
+// Request logging middleware
+app.use((req, _res, next) => {
+  if (logger) {
+    logger.debug(`${req.method} ${req.path}`, {
+      query: req.query,
+      contentType: req.get('content-type')
+    });
+  }
+  next();
+});
 
 /**
  * API endpoint: Receive completed text from browser
  * POST /api/complete
  */
 app.post('/api/complete', (req, res) => {
-  completionData = req.body;
-  res.json({ status: 'received', success: true });
-  
-  // Resolve the waiting promise to trigger server shutdown
-  if (serverResolve) {
-    serverResolve();
+  try {
+    completionData = req.body;
+    
+    if (logger) {
+      logger.info('Completion received', {
+        wordCount: req.body?.metadata?.wordCount || 0,
+        textLength: req.body?.text?.length || 0,
+        timestamp: req.body?.metadata?.timestamp
+      });
+    }
+    
+    res.json({ status: 'received', success: true });
+    
+    // Resolve the waiting promise to trigger server shutdown
+    if (serverResolve) {
+      serverResolve();
+    }
+  } catch (err) {
+    if (logger) {
+      logger.error('Error in /api/complete', {
+        message: err.message,
+        stack: err.stack
+      });
+    }
+    res.status(500).json({ status: 'error', success: false, error: err.message });
   }
 });
 
@@ -50,9 +83,20 @@ app.post('/api/save', async (req, res) => {
     const { buffer, metadata } = req.body;
     
     if (!buffer) {
+      if (logger) {
+        logger.warn('Save request without buffer');
+      }
       return res.status(400).json({ 
         success: false, 
         error: 'No buffer provided' 
+      });
+    }
+    
+    if (logger) {
+      logger.info('Save request received', {
+        mode: saveConfig.mode,
+        bufferSize: buffer.length,
+        metadata: metadata
       });
     }
     
@@ -63,7 +107,20 @@ app.post('/api/save', async (req, res) => {
       try {
         await fs.writeFile(saveConfig.path, buffer, 'utf-8');
         savedPath = saveConfig.path;
+        
+        if (logger) {
+          logger.info('Buffer saved to disk', {
+            path: savedPath,
+            size: buffer.length
+          });
+        }
       } catch (err) {
+        if (logger) {
+          logger.error('Failed to write file', {
+            path: saveConfig.path,
+            error: err.message
+          });
+        }
         return res.status(500).json({
           success: false,
           error: `Failed to write file: ${err.message}`
@@ -81,7 +138,12 @@ app.post('/api/save', async (req, res) => {
       mode: saveConfig.mode
     });
   } catch (err) {
-    console.error('Save error:', err);
+    if (logger) {
+      logger.error('Error in /api/save', {
+        message: err.message,
+        stack: err.stack
+      });
+    }
     res.status(500).json({
       success: false,
       error: err.message
@@ -90,20 +152,36 @@ app.post('/api/save', async (req, res) => {
 });
 
 /**
- * Health check endpoint (optional, for monitoring)
+ * Health check endpoint
  */
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  try {
+    if (logger) {
+      logger.debug('Health check');
+    }
+    res.json({ status: 'ok' });
+  } catch (err) {
+    if (logger) {
+      logger.error('Error in /api/health', {
+        message: err.message
+      });
+    }
+    res.status(500).json({ status: 'error' });
+  }
 });
 
 /**
  * Fallback to index.html for SPA routing
  * Injects UI config into window.voidwriterConfig
- * This MUST come before the static middleware to intercept requests
  */
-app.get('*', async (_req, res) => {
+app.get('/', async (_req, res) => {
   try {
     const indexPath = path.join(__dirname, 'dist', 'index.html');
+    
+    if (logger) {
+      logger.debug('Serving index.html', { path: indexPath });
+    }
+    
     let html = await fs.readFile(indexPath, 'utf-8');
     
     // Inject config into a script tag in the HTML head
@@ -118,17 +196,27 @@ app.get('*', async (_req, res) => {
     
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
+    
+    if (logger) {
+      logger.debug('HTML served with config injection', {
+        configKeys: Object.keys(uiConfig)
+      });
+    }
   } catch (err) {
-    console.error('Error serving index.html:', err);
+    if (logger) {
+      logger.error('Error serving index.html', {
+        message: err.message,
+        stack: err.stack
+      });
+    }
     res.status(500).json({ error: 'Failed to load page' });
   }
 });
 
-// Serve static files (assets, etc.) but NOT index.html (handled above)
+// Serve static files (assets, etc.) but NOT index.html
 app.use(express.static(path.join(__dirname, 'dist'), {
-  setHeaders: (res, path) => {
-    // Don't serve index.html as a static file
-    if (path.endsWith('index.html')) {
+  setHeaders: (res, filepath) => {
+    if (filepath.endsWith('index.html')) {
       res.status(404).send('Not Found');
     }
   }
@@ -138,7 +226,12 @@ app.use(express.static(path.join(__dirname, 'dist'), {
  * Error handler
  */
 app.use((err, _req, res) => {
-  console.error('Server error:', err);
+  if (logger) {
+    logger.error('Unhandled server error', {
+      message: err.message,
+      stack: err.stack
+    });
+  }
   res.status(500).json({ 
     status: 'error', 
     message: err.message 
@@ -149,63 +242,98 @@ app.use((err, _req, res) => {
  * Start the server and wait for completion
  */
 export function startServer(options = {}) {
-   // Store UI config if provided
-   if (options.uiConfig) {
-     uiConfig = options.uiConfig;
-   }
-   
-   // Store save config if provided
-   if (options.saveConfig) {
-     saveConfig = options.saveConfig;
-   }
-   
-   // Get port from options or environment
-   const port = options.port || process.env.PORT || 3333;
-   
-   return new Promise((resolve, reject) => {
-     const timeout = options.timeout || 15 * 60 * 1000; // 15 minutes default
-     
-     try {
-       server = app.listen(port, () => {
-         if (options.verbose) {
-           console.log(`VoidWriter server running on http://localhost:${port}`);
-         }
-       });
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Initialize logger
+      logger = new Logger({
+        verbose: options.verbose !== false,
+        minLevel: options.verbose ? 0 : 1, // DEBUG if verbose, else INFO
+        sessionId: options.sessionId
+      });
+      
+      // Wait for logger to initialize
+      await logger.initPromise;
+      
+      // Store UI config if provided
+      if (options.uiConfig) {
+        uiConfig = options.uiConfig;
+        logger.info('UI Config loaded', uiConfig);
+      }
+      
+      // Store save config if provided
+      if (options.saveConfig) {
+        saveConfig = options.saveConfig;
+        logger.info('Save Config loaded', saveConfig);
+      }
+      
+      // Get port from options or environment
+      const port = options.port || process.env.PORT || 3333;
+      
+      const timeout = options.timeout || 15 * 60 * 1000; // 15 minutes default
+      
+      logger.info('Starting server', {
+        port: port,
+        timeout: timeout,
+        uiConfig: uiConfig,
+        saveConfig: saveConfig
+      });
+      
+      server = app.listen(port, () => {
+        logger.info('Server started successfully', {
+          port: port,
+          url: `http://localhost:${port}`,
+          logFile: logger.getLogFile()
+        });
+      });
 
-       // Set up timeout
-       const timeoutHandle = setTimeout(() => {
-         if (options.verbose) {
-           console.log('Session timeout reached');
-         }
-         shutdown(resolve);
-       }, timeout);
+      // Set up timeout
+      const timeoutHandle = setTimeout(() => {
+        logger.info('Session timeout reached');
+        shutdown(resolve);
+      }, timeout);
 
-       // Wait for completion or timeout
-       serverResolve = () => {
-         clearTimeout(timeoutHandle);
-         shutdown(resolve);
-       };
+      // Wait for completion or timeout
+      serverResolve = () => {
+        clearTimeout(timeoutHandle);
+        shutdown(resolve);
+      };
 
-       // Handle server errors
-       server.on('error', (err) => {
-         clearTimeout(timeoutHandle);
-         console.error('Server error:', err);
-         reject(err);
-       });
+      // Handle server errors
+      server.on('error', (err) => {
+        clearTimeout(timeoutHandle);
+        logger.error('Server error event', {
+          message: err.message,
+          code: err.code,
+          stack: err.stack
+        });
+        reject(err);
+      });
 
-     } catch (error) {
-       console.error('Failed to start server:', error);
-       reject(error);
-     }
-   });
- }
+    } catch (error) {
+      logger.fatal('Failed to start server', {
+        message: error.message,
+        stack: error.stack
+      });
+      reject(error);
+    }
+  });
+}
 
 /**
  * Gracefully shutdown server and return data
  */
 function shutdown(resolve) {
+  logger.info('Shutting down server');
+  
   if (server) {
     server.close(() => {
+      logger.info('Server closed', {
+        logFile: logger.getLogFile()
+      });
+      
+      // Print log file location to stdout
+      console.log(`\n📋 Log file: ${logger.getLogFile()}`);
+      
       // Return the captured data
       if (completionData) {
         resolve(completionData);
@@ -224,6 +352,7 @@ function shutdown(resolve) {
       }
     });
   } else {
+    logger.warn('Server not running, cannot shutdown');
     resolve(completionData || {});
   }
 }
@@ -232,13 +361,14 @@ function shutdown(resolve) {
  * Graceful shutdown on signal
  */
 process.on('SIGINT', () => {
-  console.log('Shutting down...');
+  logger.info('SIGINT received, shutting down');
   if (serverResolve) {
     serverResolve();
   }
 });
 
 process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down');
   if (serverResolve) {
     serverResolve();
   }

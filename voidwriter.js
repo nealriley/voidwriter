@@ -160,6 +160,7 @@ async function main() {
 
      // Start the server and wait for completion
      const result = await startServer({
+       port: argv.port,
        timeout: argv.timeout * 1000,
        verbose: argv.verbose,
        uiConfig,
@@ -195,9 +196,13 @@ async function main() {
     if (argv.output) {
       // Write to file
       import('fs/promises').then(async (fs) => {
-        await fs.writeFile(argv.output, JSON.stringify(output, null, 2));
-        if (argv.verbose) {
-          console.log(`Results written to: ${argv.output}`);
+        try {
+          await fs.writeFile(argv.output, JSON.stringify(output, null, 2));
+          if (argv.verbose) {
+            console.log(`Results written to: ${argv.output}`);
+          }
+        } catch (err) {
+          console.error(`Failed to write output file: ${err.message}`);
         }
       });
     } else {
