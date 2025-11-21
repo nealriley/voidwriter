@@ -17,7 +17,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3333;
 
 let completionData = null;
 let serverResolve = null;
@@ -150,53 +149,56 @@ app.use((err, _req, res) => {
  * Start the server and wait for completion
  */
 export function startServer(options = {}) {
-  // Store UI config if provided
-  if (options.uiConfig) {
-    uiConfig = options.uiConfig;
-  }
-  
-  // Store save config if provided
-  if (options.saveConfig) {
-    saveConfig = options.saveConfig;
-  }
-  
-  return new Promise((resolve, reject) => {
-    const timeout = options.timeout || 15 * 60 * 1000; // 15 minutes default
-    
-    try {
-      server = app.listen(PORT, () => {
-        if (options.verbose) {
-          console.log(`VoidWriter server running on http://localhost:${PORT}`);
-        }
-      });
+   // Store UI config if provided
+   if (options.uiConfig) {
+     uiConfig = options.uiConfig;
+   }
+   
+   // Store save config if provided
+   if (options.saveConfig) {
+     saveConfig = options.saveConfig;
+   }
+   
+   // Get port from options or environment
+   const port = options.port || process.env.PORT || 3333;
+   
+   return new Promise((resolve, reject) => {
+     const timeout = options.timeout || 15 * 60 * 1000; // 15 minutes default
+     
+     try {
+       server = app.listen(port, () => {
+         if (options.verbose) {
+           console.log(`VoidWriter server running on http://localhost:${port}`);
+         }
+       });
 
-      // Set up timeout
-      const timeoutHandle = setTimeout(() => {
-        if (options.verbose) {
-          console.log('Session timeout reached');
-        }
-        shutdown(resolve);
-      }, timeout);
+       // Set up timeout
+       const timeoutHandle = setTimeout(() => {
+         if (options.verbose) {
+           console.log('Session timeout reached');
+         }
+         shutdown(resolve);
+       }, timeout);
 
-      // Wait for completion or timeout
-      serverResolve = () => {
-        clearTimeout(timeoutHandle);
-        shutdown(resolve);
-      };
+       // Wait for completion or timeout
+       serverResolve = () => {
+         clearTimeout(timeoutHandle);
+         shutdown(resolve);
+       };
 
-      // Handle server errors
-      server.on('error', (err) => {
-        clearTimeout(timeoutHandle);
-        console.error('Server error:', err);
-        reject(err);
-      });
+       // Handle server errors
+       server.on('error', (err) => {
+         clearTimeout(timeoutHandle);
+         console.error('Server error:', err);
+         reject(err);
+       });
 
-    } catch (error) {
-      console.error('Failed to start server:', error);
-      reject(error);
-    }
-  });
-}
+     } catch (error) {
+       console.error('Failed to start server:', error);
+       reject(error);
+     }
+   });
+ }
 
 /**
  * Gracefully shutdown server and return data
