@@ -5,11 +5,12 @@ node_modules/
 
 # Build outputs
 /build
-/dist
 /out
 /.next
 /.nuxt
 /.cache
+
+# Note: /dist is COMMITTED for CLI distribution (pre-built SPA)
 
 # Environment variables
 .env

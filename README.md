@@ -4,103 +4,129 @@
 ![React](https://img.shields.io/badge/React-18-blue)
 ![Three.js](https://img.shields.io/badge/Three.js-Latest-green)
 
-A meditative 2D typing experience where your words fade into the void. VoidWriter renders your text as three-dimensional objects that float, rotate, and gradually fade away in a peaceful dark environment.
+A meditative 3D typing experience optimized for CLI integration. VoidWriter serves as a temporary UI that opens when a CLI tool needs to collect user input. Users type in an immersive 3D environment, and their text is returned as JSON to the parent process.
+
+**🎮 Current Mode:** Arcade-style space invaders game where words are destroyed by missiles as you type.
 
 **⚠️ DISCLAIMER:** This is a demonstration project created to learn React with React Three Fiber. It should not be used in production environments as it hasn't been optimized for performance or tested across all browsers and devices.
 
 ## Features
 
 - 🔤 Real-time 3D text rendering with Three.js
-- 🌟 Interactive typewriter-like typing experience
-- 🎭 Beautiful animations and fading effects
-- 📊 Word counting and text management
-- 🎛️ Adjustable fade speed controls
-- 💾 Download or copy your text
+- 🎮 Arcade-style gameplay with missiles and explosions
+- 💬 CLI-integrated input collection
+- 📊 Session metrics and performance tracking
+- 💾 Easy text export (download, copy, or return to CLI)
 - 🧹 Clear text functionality
+- 💿 Pre-built distribution for instant startup
 
-## Getting Started
+## Quick Start
+
+### For CLI Integration (Recommended)
+
+```bash
+# Install dependencies
+npm install
+
+# Run as CLI tool
+node voidwriter.js "What's your approach?"
+
+# Returns JSON:
+# {"success": true, "text": "user's response", "metadata": {...}}
+```
+
+See [README-CLI-INTEGRATION.md](./README-CLI-INTEGRATION.md) for detailed integration guide.
+
+### For Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+# Opens http://localhost:5173
+
+# Build for production/CLI
+npm run build:cli
+```
+
+## Architecture
+
+VoidWriter is designed as a **temporary UI service** for CLI tools:
+
+```
+Python/Node CLI Tool
+    ↓ spawns
+Node.js HTTP Server (localhost:3333)
+    ↓ serves
+Browser + VoidWriter App
+    ↓ user types
+JSON returned to CLI
+```
+
+## Usage
+
+### Standalone Development
+
+1. Run `npm run dev` to start the Vite dev server
+2. Open http://localhost:5173 in your browser
+3. Start typing on your keyboard
+4. Press Ctrl+Enter or click "Submit" to complete input
+
+### CLI Integration
+
+```bash
+# Basic usage
+node voidwriter.js "Your prompt text"
+
+# With options
+node voidwriter.js \
+  --prompt "Describe your approach" \
+  --timeout 900 \
+  --port 3333 \
+  --min-words 10
+
+# Returns JSON to stdout for parent process to capture
+```
+
+## Project Structure
+
+```
+voidwriter/
+├── src/
+│   ├── App.tsx              # Main game/UI component
+│   ├── App.css              # Game styling
+│   ├── main.tsx             # React entry point
+│   └── index.css            # Global styles
+├── dist/                    # Pre-built SPA (committed)
+├── server.js                # Express HTTP server
+├── voidwriter.js            # CLI entry point
+├── index.html               # HTML template
+├── vite.config.ts           # Vite configuration
+├── tsconfig.json            # TypeScript configuration
+├── package.json             # Dependencies and scripts
+└── PROMPT.md                # Architecture documentation
+```
+
+## NPM Scripts
+
+```bash
+npm run dev         # Start Vite dev server
+npm run build       # Build for development
+npm run build:cli   # Build for CLI distribution
+npm run start       # Run as CLI tool (requires prompt argument)
+npm run start:dev   # Run CLI tool with dev server
+npm run lint        # Lint TypeScript/React code
+npm run typecheck   # Type check TypeScript
+```
+
+## Development
 
 ### Prerequisites
 
 - Node.js (v16 or newer)
 - npm or yarn
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/nealriley/voidwriter.git
-cd voidwriter
-
-# Install dependencies
-npm install
-# or
-yarn install
-```
-
-### Development
-
-```bash
-# Start the development server
-npm run dev
-# or
-yarn dev
-```
-
-This will start the Vite development server at `http://localhost:5173`.
-
-### Building for Production
-
-```bash
-# Build the application
-npm run build
-# or
-yarn build
-```
-
-The built files will be in the `dist` directory.
-
-## Usage
-
-1. Simply start typing on your keyboard
-2. Press space or enter to complete a word
-3. Use the panel to:
-   - See your current word count
-   - Adjust how quickly text fades away
-4. Use the sidebar buttons to:
-   - Download your text as a file
-   - Copy text to clipboard
-   - Clear all text
-   - Hide/show the control panel
-
-## Project Background
-
-VoidWriter was created as a learning exercise to explore:
-
-- React with TypeScript
-- Vite as a build tool and development server
-- React Three Fiber for 3D rendering
-- State management with React hooks
-- Custom animations and effects
-
-The goal was to create a unique interactive experience while learning the fundamentals of 3D web development.
-
-## Development Guide
-
-### Project Structure
-
-```
-voidwriter/
-├── public/            # Static assets
-├── src/
-│   ├── App.tsx        # Main application component
-│   ├── App.css        # Component styling
-│   ├── main.tsx       # Entry point
-│   └── index.css      # Global styles
-├── index.html         # HTML template
-├── vite.config.ts     # Vite configuration
-└── tsconfig.json      # TypeScript configuration
-```
 
 ### Commands
 
@@ -109,21 +135,38 @@ voidwriter/
 - **Lint**: `npm run lint`
 - **Typecheck**: `npm run typecheck`
 
-### Adding New Features
+### Code Style
 
-When adding new features:
-
-- Follow the existing code style and patterns
 - Use TypeScript for type safety
+- Follow existing patterns (functional components, hooks)
 - Keep components focused and modular
-- Test on multiple browsers and devices
 - Run `npm run typecheck` to ensure type correctness
+- Run `npm run lint` before committing
 
 ## Technologies Used
 
-- [React](https://reactjs.org/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Vite](https://vitejs.dev/)
-- [Three.js](https://threejs.org/)
-- [React Three Fiber](https://github.com/pmndrs/react-three-fiber)
-- [React Three Drei](https://github.com/pmndrs/drei)
+- [React](https://reactjs.org/) - UI framework
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- [Vite](https://vitejs.dev/) - Build tool and dev server
+- [Three.js](https://threejs.org/) - 3D graphics
+- [React Three Fiber](https://github.com/pmndrs/react-three-fiber) - React bindings for Three.js
+- [React Three Drei](https://github.com/pmndrs/drei) - Utility components
+- [React Spring](https://www.react-spring.dev/) - Animations
+- [Express](https://expressjs.com/) - HTTP server
+- [yargs](http://yargs.js.org/) - CLI argument parsing
+- [open](https://github.com/sindresorhus/open) - Cross-platform browser opener
+
+## Contributing
+
+When adding new features:
+
+- Keep the CLI integration in mind (ensure text can be captured)
+- Add submit/complete functionality for CLI mode
+- Preserve existing typing experience
+- Test manual flow: `node voidwriter.js "test"`
+- Commit with clear messages explaining changes
+
+## License
+
+MIT
+
