@@ -11,6 +11,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,10 +22,10 @@ const PORT = process.env.PORT || 3333;
 let completionData = null;
 let serverResolve = null;
 let server = null;
+let uiConfig = {};
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'dist')));
 
 /**
  * API endpoint: Receive completed text from browser
@@ -49,10 +50,41 @@ app.get('/api/health', (_req, res) => {
 
 /**
  * Fallback to index.html for SPA routing
+ * Injects UI config into window.voidwriterConfig
+ * This MUST come before the static middleware to intercept requests
  */
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+app.get('*', async (_req, res) => {
+  try {
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    let html = await fs.readFile(indexPath, 'utf-8');
+    
+    // Inject config into a script tag in the HTML head
+    const configScript = `
+    <script>
+      window.voidwriterConfig = ${JSON.stringify(uiConfig)};
+    </script>
+    `;
+    
+    // Insert before closing </head> tag
+    html = html.replace('</head>', configScript + '</head>');
+    
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('Error serving index.html:', err);
+    res.status(500).json({ error: 'Failed to load page' });
+  }
 });
+
+// Serve static files (assets, etc.) but NOT index.html (handled above)
+app.use(express.static(path.join(__dirname, 'dist'), {
+  setHeaders: (res, path) => {
+    // Don't serve index.html as a static file
+    if (path.endsWith('index.html')) {
+      res.status(404).send('Not Found');
+    }
+  }
+}));
 
 /**
  * Error handler
@@ -69,6 +101,11 @@ app.use((err, _req, res) => {
  * Start the server and wait for completion
  */
 export function startServer(options = {}) {
+  // Store UI config if provided
+  if (options.uiConfig) {
+    uiConfig = options.uiConfig;
+  }
+  
   return new Promise((resolve, reject) => {
     const timeout = options.timeout || 15 * 60 * 1000; // 15 minutes default
     

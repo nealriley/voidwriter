@@ -5,6 +5,37 @@ import { useSpring, animated, config } from '@react-spring/three';
 import * as THREE from 'three';
 import './App.css';
 
+interface UIConfig {
+  title?: string | null;
+  mainText?: string | null;
+  subText?: string | null;
+}
+
+/**
+ * Hook to access UI configuration from window.voidwriterConfig
+ * Falls back to defaults if not set by server
+ */
+function useUIConfig(): UIConfig {
+  const [config, setConfig] = useState<UIConfig>({
+    title: null,
+    mainText: null,
+    subText: null
+  });
+
+  useEffect(() => {
+    // Check if window.voidwriterConfig was injected by server
+    const injectedConfig = (window as any).voidwriterConfig || {};
+    
+    setConfig({
+      title: injectedConfig.title || null,
+      mainText: injectedConfig.mainText || null,
+      subText: injectedConfig.subText || null
+    });
+  }, []);
+
+  return config;
+}
+
 interface Word {
   id: number;
   text: string;
@@ -391,7 +422,8 @@ function ScorePopupEffect({
 
 
 function SpaceInvadersApp() {
-  const [currentWord, setCurrentWord] = useState(() => {
+   const uiConfig = useUIConfig();
+   const [currentWord, setCurrentWord] = useState(() => {
     // Load saved current word from localStorage
     return localStorage.getItem('voidwriter-current') || '';
   });
@@ -1036,24 +1068,24 @@ function SpaceInvadersApp() {
   return (
     <div className="app" style={{ background: '#000' }}>
       
-      {/* SKYWRITER Logo/Title */}
-      <div 
-        className="pixelated"
-        style={{
-          position: 'absolute',
-          top: '7%',
-          left: '7%',
-          color: '#00ff00',
-          fontSize: '20px',
-          fontFamily: '"Press Start 2P", monospace',
-          textShadow: '0 0 20px #00ff00, 0 0 40px #00ff00',
-          letterSpacing: '3px',
-          zIndex: 100,
-          animation: 'pulse 2s ease-in-out infinite'
-        }}
-      >
-        SKYWRITER
-      </div>
+       {/* SKYWRITER Logo/Title */}
+       <div 
+         className="pixelated"
+         style={{
+           position: 'absolute',
+           top: '7%',
+           left: '7%',
+           color: '#00ff00',
+           fontSize: '20px',
+           fontFamily: '"Press Start 2P", monospace',
+           textShadow: '0 0 20px #00ff00, 0 0 40px #00ff00',
+           letterSpacing: '3px',
+           zIndex: 100,
+           animation: 'pulse 2s ease-in-out infinite'
+         }}
+       >
+         {uiConfig.title || 'SKYWRITER'}
+       </div>
       
       {/* Action Feedback Messages */}
       {actionFeedback.map(feedback => (
@@ -1076,49 +1108,51 @@ function SpaceInvadersApp() {
         </div>
       ))}
       
-      {/* Instruction Text for Empty State */}
-      {showInstructions && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          textAlign: 'center',
-          zIndex: 90,
-          animation: 'instructionFade 4s ease-in-out infinite',
-          pointerEvents: 'none'
-        }}>
-          <div 
-            className="pixelated"
-            style={{
-              color: '#66ff66',
-              fontSize: '14px',
-              fontFamily: '"Press Start 2P", monospace',
-              textShadow: '0 0 8px rgba(102, 255, 102, 0.5)',
-              marginBottom: '20px',
-              opacity: 0.8,
-              letterSpacing: '1px',
-              lineHeight: '1.8'
-            }}
-          >
-            START TYPING TO BEGIN
-          </div>
-          <div 
-            className="pixelated"
-            style={{
-              color: '#44cc44',
-              fontSize: '10px',
-              fontFamily: '"Press Start 2P", monospace',
-              textShadow: '0 0 6px rgba(68, 204, 68, 0.4)',
-              opacity: 0.6,
-              letterSpacing: '0.5px',
-              lineHeight: '1.6'
-            }}
-          >
-            WRITE FREELY IN SKYWRITER
-          </div>
-        </div>
-      )}
+       {/* Instruction Text for Empty State */}
+       {showInstructions && (
+         <div style={{
+           position: 'absolute',
+           top: '50%',
+           left: '50%',
+           transform: 'translate(-50%, -50%)',
+           textAlign: 'center',
+           zIndex: 90,
+           animation: 'instructionFade 4s ease-in-out infinite',
+           pointerEvents: 'none'
+         }}>
+           {/* Dynamic Main Text or Default Instructions */}
+           <div 
+             className="pixelated"
+             style={{
+               color: '#66ff66',
+               fontSize: '14px',
+               fontFamily: '"Press Start 2P", monospace',
+               textShadow: '0 0 8px rgba(102, 255, 102, 0.5)',
+               marginBottom: '20px',
+               opacity: 0.8,
+               letterSpacing: '1px',
+               lineHeight: '1.8'
+             }}
+           >
+             {uiConfig.mainText || 'START TYPING TO BEGIN'}
+           </div>
+           {/* Dynamic Sub Text or Default Instructions */}
+           <div 
+             className="pixelated"
+             style={{
+               color: '#44cc44',
+               fontSize: '10px',
+               fontFamily: '"Press Start 2P", monospace',
+               textShadow: '0 0 6px rgba(68, 204, 68, 0.4)',
+               opacity: 0.6,
+               letterSpacing: '0.5px',
+               lineHeight: '1.6'
+             }}
+           >
+             {uiConfig.subText || 'WRITE FREELY IN SKYWRITER'}
+           </div>
+         </div>
+       )}
       
       {/* Arcade-style SCORE display in bottom-right */}
       <div 

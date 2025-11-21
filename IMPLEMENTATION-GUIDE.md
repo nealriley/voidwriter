@@ -1,6 +1,6 @@
 # VoidWriter CLI Integration - Implementation Guide
 
-## Status: Phase 1 (Cleanup) Complete, Phase 2 (Core Build) Complete
+## Status: Phase 1 (Cleanup) Complete, Phase 2 (Core Build) Complete, Phase 3A (Runtime Parameters) Complete
 
 This document summarizes the work completed to transform VoidWriter from a Docker-based deployment to a CLI-integrated service.
 
@@ -266,9 +266,185 @@ if response["success"]:
 
 ---
 
-## Remaining Tasks (Phase 2 Continued)
+## Phase 3A: Runtime Parameters (COMPLETED) ✅
 
-The following tasks remain to fully integrate and optimize the CLI delivery model:
+### New Feature: Dynamic UI Customization
+
+VoidWriter now supports runtime customization of UI elements via CLI parameters, enabling parent tools to dynamically configure the interface without rebuilding.
+
+### Implementation Details
+
+#### 1. **CLI Options Added to voidwriter.js**
+
+New command-line parameters:
+```bash
+--title TEXT         UI title text (defaults to "SKYWRITER")
+--main-text TEXT     Main instruction text for empty state
+--sub-text TEXT      Sub-instruction text for empty state
+```
+
+**Usage Example:**
+```bash
+node voidwriter.js \
+  --title "WRITEFLOW" \
+  --main-text "Start writing your response" \
+  --sub-text "Press Ctrl+Enter to submit"
+```
+
+#### 2. **Server-Side Config Injection (server.js)**
+
+**Key Changes:**
+- Added `let uiConfig = {}` to store configuration
+- Modified `startServer()` to accept and store `uiConfig` option
+- Changed middleware order to prevent static file serving from bypassing index.html
+- Implemented dynamic HTML injection:
+  - Reads index.html from dist/
+  - Injects `window.voidwriterConfig` script tag before `</head>`
+  - Serves modified HTML with config embedded
+
+**Technical Implementation:**
+```javascript
+// Store UI config
+export function startServer(options = {}) {
+  if (options.uiConfig) {
+    uiConfig = options.uiConfig;
+  }
+  // ... rest of server setup
+}
+
+// On GET *, inject config into HTML
+app.get('*', async (_req, res) => {
+  const html = await fs.readFile(indexPath, 'utf-8');
+  const configScript = `
+    <script>
+      window.voidwriterConfig = ${JSON.stringify(uiConfig)};
+    </script>
+  `;
+  res.send(html.replace('</head>', configScript + '</head>'));
+});
+```
+
+#### 3. **React Hook for Config Access (src/App.tsx)**
+
+**New Hook: useUIConfig()**
+```typescript
+interface UIConfig {
+  title?: string | null;
+  mainText?: string | null;
+  subText?: string | null;
+}
+
+function useUIConfig(): UIConfig {
+  const [config, setConfig] = useState<UIConfig>({
+    title: null,
+    mainText: null,
+    subText: null
+  });
+
+  useEffect(() => {
+    const injectedConfig = (window as any).voidwriterConfig || {};
+    setConfig({
+      title: injectedConfig.title || null,
+      mainText: injectedConfig.mainText || null,
+      subText: injectedConfig.subText || null
+    });
+  }, []);
+
+  return config;
+}
+```
+
+#### 4. **UI Modifications (src/App.tsx)**
+
+**Dynamic Title:**
+```typescript
+{uiConfig.title || 'SKYWRITER'}
+```
+
+**Dynamic Instruction Text:**
+- Main text: `{uiConfig.mainText || 'START TYPING TO BEGIN'}`
+- Sub text: `{uiConfig.subText || 'WRITE FREELY IN SKYWRITER'}`
+
+Both texts display only when the app is in the empty state (no words typed yet).
+
+### Data Flow
+
+```
+1. Parent CLI Tool
+   ↓
+2. node voidwriter.js --title X --main-text Y --sub-text Z
+   ↓
+3. voidwriter.js creates uiConfig object
+   ↓
+4. startServer({ uiConfig })
+   ↓
+5. server.js receives uiConfig, stores in module variable
+   ↓
+6. Client requests / (GET)
+   ↓
+7. server.js injects window.voidwriterConfig into HTML
+   ↓
+8. React loads, useUIConfig hook reads from window
+   ↓
+9. UI renders with custom title/text
+```
+
+### Testing Results
+
+✅ CLI parameters parsed correctly
+✅ Config passed through voidwriter.js to server.js
+✅ HTML injection working (verified with direct fetch test)
+✅ React hook successfully reads injected config
+✅ UI renders dynamic text when parameters provided
+✅ Falls back to defaults when parameters not provided
+
+### Example Invocation with Parameters
+
+```bash
+# With custom parameters
+node voidwriter.js \
+  --title "AI_BRAINSTORM" \
+  --main-text "Share your ideas" \
+  --sub-text "One idea per line"
+
+# Results in:
+# - Title shows "AI_BRAINSTORM" instead of "SKYWRITER"
+# - Main instruction: "Share your ideas"
+# - Sub instruction: "One idea per line"
+```
+
+---
+
+## Remaining Tasks (Phase 3 Continued)
+
+The following tasks remain to complete the feature implementation and optimization:
+
+### Phase 3B: Save Button Feature (Next Priority)
+
+- [ ] **feature-2-design:** Design save button architecture
+  - Define three save modes: return, disk, both
+  - Plan /api/save endpoint
+  - Design UI button placement
+
+- [ ] **feature-2-cli:** Add CLI options for save configuration
+  - `--save-mode [return|disk|both]`
+  - `--save-path PATH`
+  - `--save-filename TEMPLATE`
+
+- [ ] **feature-2-server:** Implement /api/save endpoint
+  - Handle three save modes
+  - Write to disk if enabled
+  - Return buffer via response
+
+- [ ] **feature-2-ui:** Add save button to sidebar
+  - Position alongside Download/Copy/Clear
+  - Visual feedback on click
+  - Integration with modes
+
+- [ ] **feature-2-test:** Test all save modes
+  - Test return mode
+  - Test disk mode
+  - Test both mode
 
 ### High Priority (MVP Functionality)
 
@@ -283,6 +459,7 @@ The following tasks remain to fully integrate and optimize the CLI delivery mode
   - Verify browser opens correctly
   - Verify Ctrl+Enter submits properly
   - Verify timeout works
+  - Test with runtime parameters
 
 ### Medium Priority (Documentation & Examples)
 
@@ -294,7 +471,7 @@ The following tasks remain to fully integrate and optimize the CLI delivery mode
   - Example integrations for Python, Node.js
 
 - [ ] **build-9:** Create Python integration example
-  - Full working example
+  - Full working example with runtime parameters
   - Error handling
   - Best practices
   - Located in `examples/python-integration.py`
@@ -303,10 +480,15 @@ The following tasks remain to fully integrate and optimize the CLI delivery mode
   - `scripts/build-for-cli.js` for custom build optimization
   - Minification and optimization for CLI use case
 
-### Final Step
+### Final Steps
 
-- [ ] **build-15:** Final commit with all CLI infrastructure
-  - Stage all new files and modifications
+- [ ] **phase-3a-commit:** Commit Phase 3A (Runtime Parameters)
+  - Stage all modified files
+  - Write commit message
+  - Reference this guide
+
+- [ ] **build-15:** Final commit with all CLI infrastructure (after all phases)
+  - Stage all remaining files and modifications
   - Write comprehensive commit message
   - Reference PROMPT.md architecture document
 

@@ -16,7 +16,7 @@ import { spawnSync } from 'child_process';
 import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { open } from 'open';
+import open from 'open';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { startServer } from './server.js';
@@ -50,6 +50,21 @@ const argv = yargs(hideBin(process.argv))
     type: 'number',
     description: 'Minimum words required to submit',
     default: 1
+  })
+  .option('title', {
+    type: 'string',
+    description: 'UI title text (defaults to SKYWRITER)',
+    default: null
+  })
+  .option('main-text', {
+    type: 'string',
+    description: 'Main instruction text displayed when empty',
+    default: null
+  })
+  .option('sub-text', {
+    type: 'string',
+    description: 'Sub-instruction text displayed below main text',
+    default: null
   })
   .option('no-open', {
     type: 'boolean',
@@ -104,23 +119,34 @@ async function main() {
       }
     }
 
-    // Set environment variables for server
-    process.env.PORT = argv.port;
-    process.env.PROMPT = argv.prompt;
-    process.env.MIN_WORDS = argv['min-words'];
+     // Set environment variables for server
+     process.env.PORT = argv.port;
+     process.env.PROMPT = argv.prompt;
+     process.env.MIN_WORDS = argv['min-words'];
 
-    if (argv.verbose) {
-      console.log('Starting VoidWriter server...');
-      console.log(`  Prompt: ${argv.prompt}`);
-      console.log(`  Timeout: ${argv.timeout}s`);
-      console.log(`  Port: ${argv.port}`);
-    }
+     if (argv.verbose) {
+       console.log('Starting VoidWriter server...');
+       console.log(`  Prompt: ${argv.prompt}`);
+       console.log(`  Timeout: ${argv.timeout}s`);
+       console.log(`  Port: ${argv.port}`);
+       if (argv.title) console.log(`  Title: ${argv.title}`);
+       if (argv.mainText) console.log(`  Main Text: ${argv.mainText}`);
+       if (argv.subText) console.log(`  Sub Text: ${argv.subText}`);
+     }
 
-    // Start the server and wait for completion
-    const result = await startServer({
-      timeout: argv.timeout * 1000,
-      verbose: argv.verbose
-    });
+     // Build UI config to pass to browser
+     const uiConfig = {
+       title: argv.title || null,
+       mainText: argv.mainText || null,
+       subText: argv.subText || null
+     };
+
+     // Start the server and wait for completion
+     const result = await startServer({
+       timeout: argv.timeout * 1000,
+       verbose: argv.verbose,
+       uiConfig
+     });
 
     // Open browser if requested
     if (!argv.noOpen && !argv.headless) {
