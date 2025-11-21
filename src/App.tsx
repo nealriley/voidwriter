@@ -443,6 +443,7 @@ function SpaceInvadersApp() {
   const lastWordAddedTimeRef = useRef(Date.now());
   const autoCleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const instructionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSubmitToCLIRef = useRef<(() => Promise<void>) | null>(null);
 
   const findNextPosition = useCallback((existingWords: Word[]) => {
     const occupied = new Set(
@@ -750,6 +751,15 @@ function SpaceInvadersApp() {
   }, [textBuffer]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Ctrl+Enter (or Cmd+Enter on Mac): Submit to CLI
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      if (handleSubmitToCLIRef.current) {
+        handleSubmitToCLIRef.current();
+      }
+      return;
+    }
+
     if (event.key === 'Escape') {
       event.preventDefault();
       
@@ -966,6 +976,62 @@ function SpaceInvadersApp() {
     navigator.clipboard.writeText(textBuffer.join(' '));
     showFeedback('COPIED');
   }, [textBuffer, showFeedback]);
+
+  /**
+   * Submit writing to CLI parent process via API
+   * This enables integration with agentic CLI tools
+   */
+  const handleSubmitToCLI = useCallback(async () => {
+    try {
+      if (textBuffer.length === 0 && !currentWord) {
+        showFeedback('NOTHING TO SUBMIT');
+        return;
+      }
+
+      const fullText = textBuffer.join(' ') + (currentWord ? ' ' + currentWord : '');
+      const wordCount = textBuffer.length + (currentWord ? 1 : 0);
+      
+      // Send to server API
+      const response = await fetch('/api/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: true,
+          text: fullText,
+          metadata: {
+            wordCount,
+            sessionDuration: Date.now() - lastWordAddedTimeRef.current,
+            avgWPM: performance.averageInterval > 0 
+              ? Math.round((60000 / performance.averageInterval) * (wordCount / 1))
+              : 0,
+            peakCombo: performance.combo,
+            timestamp: new Date().toISOString(),
+            cancelled: false
+          }
+        })
+      });
+
+      if (response.ok) {
+        showFeedback('SUBMITTED');
+        // Give visual feedback before closing
+        setTimeout(() => {
+          if (window.close) {
+            window.close();
+          }
+        }, 500);
+      } else {
+        showFeedback('SUBMIT FAILED');
+      }
+    } catch (error) {
+      console.error('Failed to submit:', error);
+      showFeedback('SUBMIT ERROR');
+    }
+  }, [textBuffer, currentWord, performance, showFeedback]);
+
+  // Update the ref whenever handleSubmitToCLI changes
+  useEffect(() => {
+    handleSubmitToCLIRef.current = handleSubmitToCLI;
+  }, [handleSubmitToCLI]);
 
   return (
     <div className="app" style={{ background: '#000' }}>
