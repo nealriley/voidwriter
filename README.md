@@ -1,172 +1,350 @@
 # VoidWriter
 
-![VoidWriter](https://img.shields.io/badge/VoidWriter-1.0.0-purple)
-![React](https://img.shields.io/badge/React-18-blue)
-![Three.js](https://img.shields.io/badge/Three.js-Latest-green)
+![VoidWriter](https://img.shields.io/badge/VoidWriter-2.0.0-purple)
+![Node.js](https://img.shields.io/badge/Node.js-16+-green)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
 
-A meditative 3D typing experience optimized for CLI integration. VoidWriter serves as a temporary UI that opens when a CLI tool needs to collect user input. Users type in an immersive 3D environment, and their text is returned as JSON to the parent process.
+**A CLI tool for capturing user input through an immersive 3D typing experience.**
 
-**🎮 Current Mode:** Arcade-style space invaders game where words are destroyed by missiles as you type.
-
-**⚠️ DISCLAIMER:** This is a demonstration project created to learn React with React Three Fiber. It should not be used in production environments as it hasn't been optimized for performance or tested across all browsers and devices.
+VoidWriter is a command-line tool that opens a beautiful 3D browser interface to collect text input from users. Perfect for CLI applications, agentic coding tools, or any script that needs rich text input with an engaging user experience.
 
 ## Features
 
-- 🔤 Real-time 3D text rendering with Three.js
-- 🎮 Arcade-style gameplay with missiles and explosions
-- 💬 CLI-integrated input collection
-- 📊 Session metrics and performance tracking
-- 💾 Easy text export (download, copy, or return to CLI)
-- 🧹 Clear text functionality
-- 💿 Pre-built distribution for instant startup
+✨ **CLI-First Design** - Invoke from any command line tool or script  
+🎮 **3D Arcade Interface** - Engaging space-themed typing experience  
+💾 **Multiple Save Modes** - Return data, save to disk, or both  
+📊 **Rich Metadata** - Word count, typing speed, session duration  
+🔧 **Highly Configurable** - Customize titles, prompts, timeouts, and behavior  
+📝 **Comprehensive Logging** - All operations logged to `~/.voidwriter/logs/`  
+⚡ **Auto-Shutdown** - Optionally terminate on save for streamlined workflows  
+🚀 **Instant Startup** - Pre-built SPA for sub-second launch times
 
 ## Quick Start
 
-### For CLI Integration (Recommended)
+### Installation
 
 ```bash
-# Install dependencies
 npm install
-
-# Run as CLI tool
-node voidwriter.js "What's your approach?"
-
-# Returns JSON:
-# {"success": true, "text": "user's response", "metadata": {...}}
 ```
 
-See [README-CLI-INTEGRATION.md](./README-CLI-INTEGRATION.md) for detailed integration guide.
-
-### For Development
+### Basic Usage
 
 ```bash
-# Install dependencies
-npm install
+# Ask a question and get the response
+node voidwriter.js \
+  --title "QUESTION" \
+  --main-text "What is your favorite color?" \
+  --shutdown-on-save
 
-# Start the development server
-npm run dev
-# Opens http://localhost:5173
+# Returns JSON:
+# {"success":true,"text":"Blue","metadata":{...}}
+```
 
-# Build for production/CLI
-npm run build:cli
+### Advanced Usage
+
+```bash
+# Save to disk with custom configuration
+node voidwriter.js \
+  --port 3333 \
+  --title "CODE REVIEW" \
+  --main-text "Review the following code" \
+  --sub-text "Provide detailed feedback" \
+  --save-mode both \
+  --save-path /tmp/review.txt \
+  --shutdown-on-save \
+  --timeout 600 \
+  --verbose
+```
+
+## CLI Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--port` | number | 3333 | HTTP server port |
+| `--timeout` | number | 900 | Session timeout in seconds (15 min) |
+| `--title` | string | "SKYWRITER" | UI title text |
+| `--main-text` | string | null | Main instruction text |
+| `--sub-text` | string | null | Sub-instruction text |
+| `--save-mode` | string | "return" | Save mode: `return`, `disk`, or `both` |
+| `--save-path` | string | null | File path for disk saves |
+| `--shutdown-on-save` | boolean | false | Auto-shutdown when save button clicked |
+| `--no-open` | boolean | false | Don't automatically open browser |
+| `--verbose` | boolean | false | Show detailed logging output |
+| `--output` | string | null | Write output to file instead of stdout |
+
+## Save Modes
+
+### `return` (default)
+Buffer returned in JSON response, nothing saved to disk.
+
+```bash
+node voidwriter.js --save-mode return
+# JSON includes: { "saved": { "buffer": "...", "metadata": {...} } }
+```
+
+### `disk`
+Buffer saved to specified file path, not returned in response.
+
+```bash
+node voidwriter.js --save-mode disk --save-path /tmp/output.txt
+# File written to /tmp/output.txt
+```
+
+### `both`
+Buffer saved to disk AND returned in JSON response.
+
+```bash
+node voidwriter.js --save-mode both --save-path /tmp/output.txt
+# File written AND JSON includes buffer
+```
+
+## Auto-Shutdown on Save
+
+Enable `--shutdown-on-save` to automatically terminate the server when the user clicks Save:
+
+```bash
+node voidwriter.js \
+  --main-text "Enter your response" \
+  --shutdown-on-save \
+  --save-mode both \
+  --save-path /tmp/response.txt
+```
+
+**Workflow:**
+1. User types their response
+2. User clicks **Save** button
+3. Content saved (if disk/both mode)
+4. Server automatically shuts down
+5. JSON returned to caller with success status
+
+## Output Format
+
+VoidWriter returns JSON to stdout:
+
+```json
+{
+  "success": true,
+  "text": "User's typed content here",
+  "metadata": {
+    "wordCount": 42,
+    "sessionDuration": 12500,
+    "avgWPM": 85,
+    "peakCombo": 15,
+    "timestamp": "2025-11-21T23:42:20.333Z"
+  },
+  "savedVia": "save-button",
+  "filePath": "/tmp/output.txt"
+}
+```
+
+## Logging
+
+All operations are automatically logged to `~/.voidwriter/logs/`:
+
+```bash
+# View latest log
+ls -t ~/.voidwriter/logs/ | head -1 | xargs -I {} cat ~/.voidwriter/logs/{}
+
+# Search for errors
+grep ERROR ~/.voidwriter/logs/*.log
+
+# Watch logs in real-time
+tail -f ~/.voidwriter/logs/voidwriter-*.log
+```
+
+**Log Levels:** DEBUG, INFO, WARN, ERROR, FATAL
+
+See [LOGGING.md](./LOGGING.md) for complete logging documentation.
+
+## Testing
+
+### Automated Tests
+
+```bash
+# Run comprehensive test suite (27 tests)
+node test-suite.mjs
+```
+
+### Manual Testing
+
+```bash
+# Start with verbose logging
+node voidwriter.js --port 3344 --verbose
+
+# Test save functionality
+bash test-logging-demo.sh
+```
+
+See [TEST_PLAN.md](./TEST_PLAN.md) and [TESTING_SUMMARY.md](./TESTING_SUMMARY.md) for detailed testing documentation.
+
+## Use Cases
+
+### Agentic Coding Tools
+```bash
+# Collect code review from user
+node voidwriter.js \
+  --title "CODE REVIEW" \
+  --main-text "Review the code changes" \
+  --shutdown-on-save
+```
+
+### Script Input Collection
+```bash
+# Get multi-line input in scripts
+RESPONSE=$(node voidwriter.js --main-text "Enter configuration" --shutdown-on-save)
+echo "$RESPONSE" | jq -r '.text'
+```
+
+### Interactive CLI Applications
+```python
+import subprocess
+import json
+
+result = subprocess.run([
+    'node', 'voidwriter.js',
+    '--title', 'QUESTIONNAIRE',
+    '--main-text', 'Please answer the following',
+    '--shutdown-on-save'
+], capture_output=True, text=True)
+
+data = json.loads(result.stdout)
+user_text = data['text']
 ```
 
 ## Architecture
 
-VoidWriter is designed as a **temporary UI service** for CLI tools:
-
 ```
-Python/Node CLI Tool
+CLI Tool (Python/Node/Bash)
     ↓ spawns
-Node.js HTTP Server (localhost:3333)
+voidwriter.js
+    ↓ starts
+Express HTTP Server (localhost:3333)
     ↓ serves
-Browser + VoidWriter App
+Pre-built React SPA (dist/)
     ↓ user types
-JSON returned to CLI
-```
-
-## Usage
-
-### Standalone Development
-
-1. Run `npm run dev` to start the Vite dev server
-2. Open http://localhost:5173 in your browser
-3. Start typing on your keyboard
-4. Press Ctrl+Enter or click "Submit" to complete input
-
-### CLI Integration
-
-```bash
-# Basic usage
-node voidwriter.js "Your prompt text"
-
-# With options
-node voidwriter.js \
-  --prompt "Describe your approach" \
-  --timeout 900 \
-  --port 3333 \
-  --min-words 10
-
-# Returns JSON to stdout for parent process to capture
+Save/Submit clicked
+    ↓ triggers
+Server shutdown (optional)
+    ↓ returns
+JSON to stdout
 ```
 
 ## Project Structure
 
 ```
 voidwriter/
-├── src/
-│   ├── App.tsx              # Main game/UI component
-│   ├── App.css              # Game styling
-│   ├── main.tsx             # React entry point
-│   └── index.css            # Global styles
-├── dist/                    # Pre-built SPA (committed)
-├── server.js                # Express HTTP server
-├── voidwriter.js            # CLI entry point
-├── index.html               # HTML template
-├── vite.config.ts           # Vite configuration
-├── tsconfig.json            # TypeScript configuration
-├── package.json             # Dependencies and scripts
-└── PROMPT.md                # Architecture documentation
-```
-
-## NPM Scripts
-
-```bash
-npm run dev         # Start Vite dev server
-npm run build       # Build for development
-npm run build:cli   # Build for CLI distribution
-npm run start       # Run as CLI tool (requires prompt argument)
-npm run start:dev   # Run CLI tool with dev server
-npm run lint        # Lint TypeScript/React code
-npm run typecheck   # Type check TypeScript
+├── voidwriter.js           # CLI entry point
+├── server.js               # Express HTTP server with logging
+├── logger.js               # Centralized logging utility
+├── dist/                   # Pre-built React SPA (committed)
+│   ├── index.html
+│   └── assets/
+├── src/                    # React source code
+│   ├── App.tsx             # Main 3D UI component
+│   ├── App.css
+│   ├── main.tsx
+│   └── index.css
+├── test-suite.mjs          # Automated test suite (27 tests)
+├── test-logging-demo.sh    # Logging demonstration script
+├── package.json
+├── README.md
+├── LOGGING.md              # Logging documentation
+├── TESTING_SUMMARY.md      # Test results and verification
+├── TEST_PLAN.md            # Testing procedures
+└── IMPLEMENTATION-GUIDE.md # Technical architecture details
 ```
 
 ## Development
 
 ### Prerequisites
 
-- Node.js (v16 or newer)
+- Node.js 16+ 
 - npm or yarn
 
-### Commands
+### Setup
 
-- **Development**: `npm run dev`
-- **Build**: `npm run build`
-- **Lint**: `npm run lint`
-- **Typecheck**: `npm run typecheck`
+```bash
+# Install dependencies
+npm install
 
-### Code Style
+# Start development server
+npm run dev
+# Opens http://localhost:5173
 
-- Use TypeScript for type safety
-- Follow existing patterns (functional components, hooks)
-- Keep components focused and modular
-- Run `npm run typecheck` to ensure type correctness
-- Run `npm run lint` before committing
+# Build for production
+npm run build:cli
 
-## Technologies Used
+# Run tests
+node test-suite.mjs
+```
 
-- [React](https://reactjs.org/) - UI framework
-- [TypeScript](https://www.typescriptlang.org/) - Type safety
-- [Vite](https://vitejs.dev/) - Build tool and dev server
-- [Three.js](https://threejs.org/) - 3D graphics
-- [React Three Fiber](https://github.com/pmndrs/react-three-fiber) - React bindings for Three.js
-- [React Three Drei](https://github.com/pmndrs/drei) - Utility components
-- [React Spring](https://www.react-spring.dev/) - Animations
-- [Express](https://expressjs.com/) - HTTP server
-- [yargs](http://yargs.js.org/) - CLI argument parsing
-- [open](https://github.com/sindresorhus/open) - Cross-platform browser opener
+### NPM Scripts
+
+```bash
+npm run dev         # Start Vite dev server
+npm run build       # Build production bundle
+npm run build:cli   # Build and prepare for CLI use
+npm run lint        # Lint TypeScript/React code
+npm run typecheck   # Type check TypeScript
+```
+
+## Technologies
+
+- **Runtime:** Node.js, Express
+- **Frontend:** React 18, TypeScript
+- **3D Graphics:** Three.js, React Three Fiber, React Three Drei
+- **Build Tool:** Vite
+- **CLI:** yargs (argument parsing), open (browser launching)
+- **Logging:** Custom logger with file and console output
+
+## Documentation
+
+- **[LOGGING.md](./LOGGING.md)** - Complete logging system documentation
+- **[TEST_PLAN.md](./TEST_PLAN.md)** - Testing procedures and examples
+- **[TESTING_SUMMARY.md](./TESTING_SUMMARY.md)** - Test results and verification
+- **[IMPLEMENTATION-GUIDE.md](./IMPLEMENTATION-GUIDE.md)** - Technical architecture
+
+## Troubleshooting
+
+### Server won't start
+```bash
+# Check if port is in use
+lsof -i :3333
+
+# Use a different port
+node voidwriter.js --port 3344
+```
+
+### Browser doesn't open
+```bash
+# Disable auto-open and open manually
+node voidwriter.js --no-open
+# Then visit: http://localhost:3333
+```
+
+### Check logs for errors
+```bash
+# View latest log file
+cat ~/.voidwriter/logs/voidwriter-*.log | tail -50
+
+# Search for errors
+grep ERROR ~/.voidwriter/logs/*.log
+```
 
 ## Contributing
 
-When adding new features:
+Contributions welcome! When adding features:
 
-- Keep the CLI integration in mind (ensure text can be captured)
-- Add submit/complete functionality for CLI mode
-- Preserve existing typing experience
-- Test manual flow: `node voidwriter.js "test"`
-- Commit with clear messages explaining changes
+- Maintain CLI-first design philosophy
+- Add tests to `test-suite.mjs`
+- Update documentation
+- Follow existing TypeScript patterns
+- Run `npm run typecheck` and `npm run lint` before committing
 
 ## License
 
 MIT
 
+---
+
+**Made with ❤️ for CLI developers who want beautiful UIs**

@@ -1,17 +1,38 @@
 {
-  "name": "react-three-fiber-demo",
-  "private": true,
-  "version": "0.0.0",
+  "name": "voidwriter",
+  "version": "2.0.0",
+  "description": "CLI tool for capturing user input through an immersive 3D typing experience",
   "type": "module",
+  "main": "voidwriter.js",
+  "bin": {
+    "voidwriter": "./voidwriter.js"
+  },
+  "keywords": [
+    "cli",
+    "input",
+    "typing",
+    "3d",
+    "interactive",
+    "three.js",
+    "react",
+    "text-editor"
+  ],
+  "author": "VoidWriter Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nealriley/voidwriter.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "build:cli": "tsc && vite build --mode production",
     "start": "node voidwriter.js",
-    "start:dev": "node voidwriter.js --dev",
+    "test": "node test-suite.mjs",
+    "test:demo": "bash test-logging-demo.sh",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview --host",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host"
   },
   "dependencies": {
     "@fontsource/orbitron": "^5.2.6",
@@ -38,5 +59,8 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "typescript": "^5.9.2",
     "vite": "^7.1.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
