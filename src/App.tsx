@@ -1004,10 +1004,58 @@ function SpaceInvadersApp() {
     showFeedback('SAVED');
   }, [textBuffer, showFeedback]);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(textBuffer.join(' '));
-    showFeedback('COPIED');
-  }, [textBuffer, showFeedback]);
+   const handleCopy = useCallback(() => {
+     navigator.clipboard.writeText(textBuffer.join(' '));
+     showFeedback('COPIED');
+   }, [textBuffer, showFeedback]);
+
+   /**
+    * Save buffer using /api/save endpoint
+    * Supports three modes: return, disk, both
+    */
+   const handleSaveBuffer = useCallback(async () => {
+     try {
+       if (textBuffer.length === 0 && !currentWord) {
+         showFeedback('NOTHING TO SAVE');
+         return;
+       }
+
+       const fullText = textBuffer.join(' ') + (currentWord ? ' ' + currentWord : '');
+       const wordCount = textBuffer.length + (currentWord ? 1 : 0);
+       
+       // Send to server API
+       const response = await fetch('/api/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           buffer: fullText,
+           metadata: {
+             wordCount,
+             sessionDuration: Date.now() - lastWordAddedTimeRef.current,
+             avgWPM: performance.averageInterval > 0 
+               ? Math.round((60000 / performance.averageInterval) * (wordCount / 1))
+               : 0,
+             peakCombo: performance.combo,
+             timestamp: new Date().toISOString()
+           }
+         })
+       });
+
+       if (response.ok) {
+         const result = await response.json();
+         if (result.success) {
+           showFeedback('SAVED');
+         } else {
+           showFeedback('SAVE FAILED');
+         }
+       } else {
+         showFeedback('SAVE FAILED');
+       }
+     } catch (error) {
+       console.error('Failed to save:', error);
+       showFeedback('SAVE ERROR');
+     }
+   }, [textBuffer, currentWord, performance, showFeedback]);
 
   /**
    * Submit writing to CLI parent process via API
@@ -1214,19 +1262,22 @@ function SpaceInvadersApp() {
       </div>
       
       {/* Only show sidebar when there's text */}
-      {textBuffer.length > 0 && (
-        <div className="sidebar">
-          <button className="button download-button" onClick={handleDownload}>
-            <i className="fas fa-download"></i>
-          </button>
-          <button className="button copy-button" onClick={handleCopy}>
-            <i className="fas fa-copy"></i>
-          </button>
-          <button className="button clear-button" onClick={clearAll}>
-            <i className="fas fa-trash"></i>
-          </button>
-        </div>
-      )}
+       {textBuffer.length > 0 && (
+         <div className="sidebar">
+           <button className="button download-button" onClick={handleDownload}>
+             <i className="fas fa-download"></i>
+           </button>
+           <button className="button copy-button" onClick={handleCopy}>
+             <i className="fas fa-copy"></i>
+           </button>
+           <button className="button save-button" onClick={handleSaveBuffer}>
+             <i className="fas fa-save"></i>
+           </button>
+           <button className="button clear-button" onClick={clearAll}>
+             <i className="fas fa-trash"></i>
+           </button>
+         </div>
+       )}
       
       {/* Game Canvas */}
       <div style={{ 

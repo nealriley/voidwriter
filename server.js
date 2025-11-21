@@ -23,6 +23,7 @@ let completionData = null;
 let serverResolve = null;
 let server = null;
 let uiConfig = {};
+let saveConfig = { mode: 'return', path: null };
 
 // Middleware
 app.use(express.json());
@@ -38,6 +39,54 @@ app.post('/api/complete', (req, res) => {
   // Resolve the waiting promise to trigger server shutdown
   if (serverResolve) {
     serverResolve();
+  }
+});
+
+/**
+ * API endpoint: Save buffer to disk and/or return it
+ * POST /api/save
+ */
+app.post('/api/save', async (req, res) => {
+  try {
+    const { buffer, metadata } = req.body;
+    
+    if (!buffer) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No buffer provided' 
+      });
+    }
+    
+    let savedPath = null;
+    
+    // Write to disk if mode is 'disk' or 'both'
+    if ((saveConfig.mode === 'disk' || saveConfig.mode === 'both') && saveConfig.path) {
+      try {
+        await fs.writeFile(saveConfig.path, buffer, 'utf-8');
+        savedPath = saveConfig.path;
+      } catch (err) {
+        return res.status(500).json({
+          success: false,
+          error: `Failed to write file: ${err.message}`
+        });
+      }
+    }
+    
+    // Return buffer if mode is 'return' or 'both'
+    const shouldReturn = saveConfig.mode === 'return' || saveConfig.mode === 'both';
+    
+    res.json({
+      success: true,
+      saved: shouldReturn ? { buffer, metadata } : null,
+      filePath: savedPath,
+      mode: saveConfig.mode
+    });
+  } catch (err) {
+    console.error('Save error:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 });
 
@@ -104,6 +153,11 @@ export function startServer(options = {}) {
   // Store UI config if provided
   if (options.uiConfig) {
     uiConfig = options.uiConfig;
+  }
+  
+  // Store save config if provided
+  if (options.saveConfig) {
+    saveConfig = options.saveConfig;
   }
   
   return new Promise((resolve, reject) => {

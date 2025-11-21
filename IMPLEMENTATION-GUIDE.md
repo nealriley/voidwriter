@@ -1,6 +1,6 @@
 # VoidWriter CLI Integration - Implementation Guide
 
-## Status: Phase 1 (Cleanup) Complete, Phase 2 (Core Build) Complete, Phase 3A (Runtime Parameters) Complete
+## Status: Phase 1 (Cleanup) Complete, Phase 2 (Core Build) Complete, Phase 3A (Runtime Parameters) Complete, Phase 3B (Save Button) Complete
 
 This document summarizes the work completed to transform VoidWriter from a Docker-based deployment to a CLI-integrated service.
 
@@ -412,6 +412,195 @@ node voidwriter.js \
 # - Main instruction: "Share your ideas"
 # - Sub instruction: "One idea per line"
 ```
+
+---
+
+## Phase 3B: Save Button Feature (COMPLETED) ✅
+
+### New Feature: Buffer Persistence with Multiple Save Modes
+
+VoidWriter now includes a Save button in the sidebar that allows users to persist their buffer using three configurable modes: `return`, `disk`, or `both`.
+
+### Implementation Details
+
+#### 1. **Save Modes Architecture**
+
+Three distinct save modes for maximum flexibility:
+
+- **return**: Buffer returned via /api/save response (no disk persistence)
+- **disk**: Buffer written to file on server (no return to client)
+- **both**: Buffer both written to disk AND returned in response
+
+#### 2. **CLI Options Added (voidwriter.js)**
+
+```bash
+--save-mode [return|disk|both]   Buffer save mode (default: return)
+--save-path PATH                 File path for disk saves
+```
+
+**Usage Examples:**
+
+```bash
+# Only return buffer (default)
+node voidwriter.js --prompt "Write something"
+
+# Save to disk only
+node voidwriter.js --prompt "Write something" --save-mode disk --save-path /tmp/output.txt
+
+# Save to both locations
+node voidwriter.js --prompt "Write something" --save-mode both --save-path /tmp/output.txt
+```
+
+#### 3. **Server Implementation (/api/save endpoint)**
+
+**Endpoint:** `POST /api/save`
+
+**Request Body:**
+```json
+{
+  "buffer": "User's complete typed text",
+  "metadata": {
+    "wordCount": 42,
+    "sessionDuration": 125000,
+    "avgWPM": 20.2,
+    "peakCombo": 10,
+    "timestamp": "2025-11-21T14:30:00Z"
+  }
+}
+```
+
+**Response (return mode):**
+```json
+{
+  "success": true,
+  "saved": {
+    "buffer": "User's text",
+    "metadata": { ... }
+  },
+  "filePath": null,
+  "mode": "return"
+}
+```
+
+**Response (disk mode):**
+```json
+{
+  "success": true,
+  "saved": null,
+  "filePath": "/tmp/output.txt",
+  "mode": "disk"
+}
+```
+
+**Response (both mode):**
+```json
+{
+  "success": true,
+  "saved": {
+    "buffer": "User's text",
+    "metadata": { ... }
+  },
+  "filePath": "/tmp/output.txt",
+  "mode": "both"
+}
+```
+
+#### 4. **UI Button Implementation (App.tsx)**
+
+**Location:** Sidebar (alongside Download, Copy, Clear buttons)
+
+**Button Order:**
+1. Download (↓) - Download as .txt file
+2. Copy (⊙) - Copy to clipboard
+3. Save (💾) - Save using configured mode
+4. Clear (🗑) - Clear all buffer
+
+**Visual Feedback:**
+- Shows "SAVED" on successful save
+- Shows "SAVE FAILED" on error
+- Shows "SAVE ERROR" on exception
+- Shows "NOTHING TO SAVE" if buffer empty
+- Feedback auto-disappears after 2 seconds
+
+#### 5. **Handler Implementation (handleSaveBuffer)**
+
+```typescript
+const handleSaveBuffer = useCallback(async () => {
+  try {
+    // Collect buffer and metadata
+    const fullText = textBuffer.join(' ') + currentWord;
+    const wordCount = textBuffer.length + (currentWord ? 1 : 0);
+    
+    // Send to /api/save
+    const response = await fetch('/api/save', {
+      method: 'POST',
+      body: JSON.stringify({
+        buffer: fullText,
+        metadata: { wordCount, sessionDuration, ... }
+      })
+    });
+    
+    // Handle response
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        showFeedback('SAVED');
+      }
+    }
+  } catch (error) {
+    showFeedback('SAVE ERROR');
+  }
+}, [textBuffer, currentWord, showFeedback]);
+```
+
+### Data Flow
+
+```
+User clicks Save button
+         ↓
+handleSaveBuffer() called
+         ↓
+Collects buffer + metadata
+         ↓
+POST /api/save
+         ↓
+Server evaluates save mode
+         ↓
+├─ If 'return' or 'both': Add buffer to response
+├─ If 'disk' or 'both': Write to configured file path
+         ↓
+Send response back
+         ↓
+React displays feedback ("SAVED" or error message)
+         ↓
+Feedback auto-disappears after 2 seconds
+```
+
+### Key Features
+
+✅ **Three Save Modes:** Flexibility for different use cases
+- Return mode: API consumers get buffer directly
+- Disk mode: Server persists buffer for later retrieval
+- Both mode: Maximum flexibility
+
+✅ **Configuration via CLI:** No code changes needed to change save behavior
+
+✅ **Error Handling:** Graceful failure with user feedback
+- Displays "SAVE FAILED" if mode/path configuration missing
+- Displays "SAVE ERROR" on exception
+- Shows "NOTHING TO SAVE" if buffer empty
+
+✅ **Visual Feedback:** Clear indication of save status
+- Success: "SAVED" message (2-second display)
+- Failure: "SAVE FAILED" message
+- Exception: "SAVE ERROR" message
+
+✅ **Metadata Preservation:** Save includes contextual data
+- Word count
+- Session duration
+- Average WPM
+- Peak combo counter
+- Timestamp
 
 ---
 

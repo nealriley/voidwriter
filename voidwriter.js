@@ -66,6 +66,17 @@ const argv = yargs(hideBin(process.argv))
     description: 'Sub-instruction text displayed below main text',
     default: null
   })
+  .option('save-mode', {
+    type: 'string',
+    description: 'Buffer save mode: return, disk, or both',
+    choices: ['return', 'disk', 'both'],
+    default: 'return'
+  })
+  .option('save-path', {
+    type: 'string',
+    description: 'File path for disk saves (required if save-mode is disk/both)',
+    default: null
+  })
   .option('no-open', {
     type: 'boolean',
     description: 'Do not automatically open browser',
@@ -141,11 +152,18 @@ async function main() {
        subText: argv.subText || null
      };
 
+     // Build save config
+     const saveConfig = {
+       mode: argv.saveMode || 'return',
+       path: argv.savePath || null
+     };
+
      // Start the server and wait for completion
      const result = await startServer({
        timeout: argv.timeout * 1000,
        verbose: argv.verbose,
-       uiConfig
+       uiConfig,
+       saveConfig
      });
 
     // Open browser if requested
