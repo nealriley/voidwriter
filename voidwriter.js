@@ -77,6 +77,11 @@ const argv = yargs(hideBin(process.argv))
     description: 'File path for disk saves (required if save-mode is disk/both)',
     default: null
   })
+  .option('shutdown-on-save', {
+    type: 'boolean',
+    description: 'Automatically shutdown server when save button is clicked',
+    default: false
+  })
   .option('no-open', {
     type: 'boolean',
     description: 'Do not automatically open browser',
@@ -164,7 +169,8 @@ async function main() {
        timeout: argv.timeout * 1000,
        verbose: argv.verbose,
        uiConfig,
-       saveConfig
+       saveConfig,
+       shutdownOnSave: argv.shutdownOnSave
      });
 
     // Open browser if requested

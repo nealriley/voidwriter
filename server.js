@@ -25,6 +25,7 @@ let serverResolve = null;
 let server = null;
 let uiConfig = {};
 let saveConfig = { mode: 'return', path: null };
+let shutdownOnSave = false;
 let logger = null;
 
 // Middleware
@@ -137,6 +138,27 @@ app.post('/api/save', async (req, res) => {
       filePath: savedPath,
       mode: saveConfig.mode
     });
+    
+    // Trigger shutdown if auto-shutdown on save is enabled
+    if (shutdownOnSave && serverResolve) {
+      if (logger) {
+        logger.info('Save received, triggering auto-shutdown');
+      }
+      
+      // Store the saved data as completion data
+      completionData = {
+        success: true,
+        text: buffer,
+        metadata: metadata || {},
+        savedVia: 'save-button',
+        filePath: savedPath
+      };
+      
+      // Trigger shutdown after a brief delay to ensure response is sent
+      setTimeout(() => {
+        serverResolve();
+      }, 100);
+    }
   } catch (err) {
     if (logger) {
       logger.error('Error in /api/save', {
@@ -225,17 +247,19 @@ app.use(express.static(path.join(__dirname, 'dist'), {
 /**
  * Error handler
  */
-app.use((err, _req, res) => {
+app.use((err, _req, res, _next) => {
   if (logger) {
     logger.error('Unhandled server error', {
       message: err.message,
       stack: err.stack
     });
   }
-  res.status(500).json({ 
-    status: 'error', 
-    message: err.message 
-  });
+  if (res && typeof res.status === 'function') {
+    res.status(500).json({ 
+      status: 'error', 
+      message: err.message 
+    });
+  }
 });
 
 /**
@@ -264,6 +288,12 @@ export function startServer(options = {}) {
       if (options.saveConfig) {
         saveConfig = options.saveConfig;
         logger.info('Save Config loaded', saveConfig);
+      }
+      
+      // Store shutdown on save setting
+      if (options.shutdownOnSave !== undefined) {
+        shutdownOnSave = options.shutdownOnSave;
+        logger.info('Auto-shutdown on save', { enabled: shutdownOnSave });
       }
       
       // Get port from options or environment
