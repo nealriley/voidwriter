@@ -21,17 +21,35 @@ VoidWriter is a command-line tool that opens a beautiful 3D browser interface to
 
 ## Quick Start
 
-### Installation
+### Dev Container (recommended)
+When the dev container starts it automatically installs dependencies and builds the CLI bundle:
+
+- `cd writer && (npm ci || npm install)`
+- `npm run build:cli`
+
+Re-run manually anytime:
 
 ```bash
-npm install
+cd writer
+npm ci
+npm run build:cli
 ```
+
+### Manual setup (outside dev containers)
+
+```bash
+cd writer
+npm ci
+npm run build:cli
+```
+
+The SPA bundle in `writer/dist/` is committed, but the dev container (and the commands above) rebuild it to ensure it matches your local dependencies.
 
 ### Basic Usage
 
 ```bash
 # Ask a question and get the response
-node voidwriter.js \
+node writer/voidwriter.js \
   --title "QUESTION" \
   --main-text "What is your favorite color?" \
   --shutdown-on-save
@@ -44,7 +62,7 @@ node voidwriter.js \
 
 ```bash
 # Save to disk with custom configuration
-node voidwriter.js \
+node writer/voidwriter.js \
   --port 3333 \
   --title "CODE REVIEW" \
   --main-text "Review the following code" \
@@ -55,6 +73,12 @@ node voidwriter.js \
   --timeout 600 \
   --verbose
 ```
+
+### CLI actions (for scripts/agents)
+
+- Install deps: `cd writer && npm ci`
+- Build bundled UI: `cd writer && npm run build:cli`
+- Run the CLI from repo root: `node writer/voidwriter.js [flags...]`
 
 ## CLI Options
 
@@ -78,7 +102,7 @@ node voidwriter.js \
 Buffer returned in JSON response, nothing saved to disk.
 
 ```bash
-node voidwriter.js --save-mode return
+node writer/voidwriter.js --save-mode return
 # JSON includes: { "saved": { "buffer": "...", "metadata": {...} } }
 ```
 
@@ -86,7 +110,7 @@ node voidwriter.js --save-mode return
 Buffer saved to specified file path, not returned in response.
 
 ```bash
-node voidwriter.js --save-mode disk --save-path /tmp/output.txt
+node writer/voidwriter.js --save-mode disk --save-path /tmp/output.txt
 # File written to /tmp/output.txt
 ```
 
@@ -94,7 +118,7 @@ node voidwriter.js --save-mode disk --save-path /tmp/output.txt
 Buffer saved to disk AND returned in JSON response.
 
 ```bash
-node voidwriter.js --save-mode both --save-path /tmp/output.txt
+node writer/voidwriter.js --save-mode both --save-path /tmp/output.txt
 # File written AND JSON includes buffer
 ```
 
@@ -103,7 +127,7 @@ node voidwriter.js --save-mode both --save-path /tmp/output.txt
 Enable `--shutdown-on-save` to automatically terminate the server when the user clicks Save:
 
 ```bash
-node voidwriter.js \
+node writer/voidwriter.js \
   --main-text "Enter your response" \
   --shutdown-on-save \
   --save-mode both \
@@ -154,7 +178,7 @@ tail -f ~/.voidwriter/logs/voidwriter-*.log
 
 **Log Levels:** DEBUG, INFO, WARN, ERROR, FATAL
 
-See [LOGGING.md](./LOGGING.md) for complete logging documentation.
+See [writer/LOGGING.md](./writer/LOGGING.md) for complete logging documentation.
 
 ## Testing
 
@@ -162,27 +186,27 @@ See [LOGGING.md](./LOGGING.md) for complete logging documentation.
 
 ```bash
 # Run comprehensive test suite (27 tests)
-node test-suite.mjs
+cd writer && node test-suite.mjs
 ```
 
 ### Manual Testing
 
 ```bash
 # Start with verbose logging
-node voidwriter.js --port 3344 --verbose
+node writer/voidwriter.js --port 3344 --verbose
 
 # Test save functionality
-bash test-logging-demo.sh
+cd writer && bash test-logging-demo.sh
 ```
 
-See [TEST_PLAN.md](./TEST_PLAN.md) and [TESTING_SUMMARY.md](./TESTING_SUMMARY.md) for detailed testing documentation.
+See [writer/TEST_PLAN.md](./writer/TEST_PLAN.md) and [writer/TESTING_SUMMARY.md](./writer/TESTING_SUMMARY.md) for detailed testing documentation.
 
 ## Use Cases
 
 ### Agentic Coding Tools
 ```bash
 # Collect code review from user
-node voidwriter.js \
+node writer/voidwriter.js \
   --title "CODE REVIEW" \
   --main-text "Review the code changes" \
   --shutdown-on-save
@@ -191,7 +215,7 @@ node voidwriter.js \
 ### Script Input Collection
 ```bash
 # Get multi-line input in scripts
-RESPONSE=$(node voidwriter.js --main-text "Enter configuration" --shutdown-on-save)
+RESPONSE=$(node writer/voidwriter.js --main-text "Enter configuration" --shutdown-on-save)
 echo "$RESPONSE" | jq -r '.text'
 ```
 
@@ -201,7 +225,7 @@ import subprocess
 import json
 
 result = subprocess.run([
-    'node', 'voidwriter.js',
+    'node', 'writer/voidwriter.js',
     '--title', 'QUESTIONNAIRE',
     '--main-text', 'Please answer the following',
     '--shutdown-on-save'
@@ -216,11 +240,11 @@ user_text = data['text']
 ```
 CLI Tool (Python/Node/Bash)
     ↓ spawns
-voidwriter.js
+writer/voidwriter.js
     ↓ starts
 Express HTTP Server (localhost:3333)
     ↓ serves
-Pre-built React SPA (dist/)
+Pre-built React SPA (writer/dist/)
     ↓ user types
 Save/Submit clicked
     ↓ triggers
@@ -233,25 +257,21 @@ JSON to stdout
 
 ```
 voidwriter/
-├── voidwriter.js           # CLI entry point
-├── server.js               # Express HTTP server with logging
-├── logger.js               # Centralized logging utility
-├── dist/                   # Pre-built React SPA (committed)
-│   ├── index.html
-│   └── assets/
-├── src/                    # React source code
-│   ├── App.tsx             # Main 3D UI component
-│   ├── App.css
-│   ├── main.tsx
-│   └── index.css
-├── test-suite.mjs          # Automated test suite (27 tests)
-├── test-logging-demo.sh    # Logging demonstration script
-├── package.json
-├── README.md
-├── LOGGING.md              # Logging documentation
-├── TESTING_SUMMARY.md      # Test results and verification
-├── TEST_PLAN.md            # Testing procedures
-└── IMPLEMENTATION-GUIDE.md # Technical architecture details
+├── AGENTS.md               # Agent usage guide
+├── voidwriter-aliases.sh   # Helper aliases (vw-text/json/perpetual)
+└── writer/                 # CLI + SPA source
+    ├── voidwriter.js           # CLI entry point
+    ├── server.js               # Express HTTP server with logging
+    ├── logger.js               # Centralized logging utility
+    ├── dist/                   # Pre-built React SPA (committed)
+    ├── src/                    # React source code
+    ├── test-suite.mjs          # Automated test suite (27 tests)
+    ├── test-logging-demo.sh    # Logging demonstration script
+    ├── package.json
+    ├── LOGGING.md              # Logging documentation
+    ├── TESTING_SUMMARY.md      # Test results and verification
+    ├── TEST_PLAN.md            # Testing procedures
+    └── IMPLEMENTATION-GUIDE.md # Technical architecture details
 ```
 
 ## Development
@@ -264,8 +284,9 @@ voidwriter/
 ### Setup
 
 ```bash
-# Install dependencies
-npm install
+# Install dependencies (from repo root)
+cd writer
+npm ci
 
 # Start development server
 npm run dev
@@ -299,10 +320,10 @@ npm run typecheck   # Type check TypeScript
 
 ## Documentation
 
-- **[LOGGING.md](./LOGGING.md)** - Complete logging system documentation
-- **[TEST_PLAN.md](./TEST_PLAN.md)** - Testing procedures and examples
-- **[TESTING_SUMMARY.md](./TESTING_SUMMARY.md)** - Test results and verification
-- **[IMPLEMENTATION-GUIDE.md](./IMPLEMENTATION-GUIDE.md)** - Technical architecture
+- **[writer/LOGGING.md](./writer/LOGGING.md)** - Complete logging system documentation
+- **[writer/TEST_PLAN.md](./writer/TEST_PLAN.md)** - Testing procedures and examples
+- **[writer/TESTING_SUMMARY.md](./writer/TESTING_SUMMARY.md)** - Test results and verification
+- **[writer/IMPLEMENTATION-GUIDE.md](./writer/IMPLEMENTATION-GUIDE.md)** - Technical architecture
 
 ## Troubleshooting
 
@@ -312,13 +333,13 @@ npm run typecheck   # Type check TypeScript
 lsof -i :3333
 
 # Use a different port
-node voidwriter.js --port 3344
+node writer/voidwriter.js --port 3344
 ```
 
 ### Browser doesn't open
 ```bash
 # Disable auto-open and open manually
-node voidwriter.js --no-open
+node writer/voidwriter.js --no-open
 # Then visit: http://localhost:3333
 ```
 

@@ -28,12 +28,6 @@ const __dirname = path.dirname(__filename);
  * Parse command line arguments
  */
 const argv = yargs(hideBin(process.argv))
-  .option('prompt', {
-    alias: 'p',
-    type: 'string',
-    description: 'Text prompt to display in the UI',
-    default: 'Start writing...'
-  })
   .option('timeout', {
     alias: 't',
     type: 'number',
@@ -137,12 +131,10 @@ async function main() {
 
      // Set environment variables for server
      process.env.PORT = argv.port;
-     process.env.PROMPT = argv.prompt;
      process.env.MIN_WORDS = argv['min-words'];
 
      if (argv.verbose) {
        console.log('Starting VoidWriter server...');
-       console.log(`  Prompt: ${argv.prompt}`);
        console.log(`  Timeout: ${argv.timeout}s`);
        console.log(`  Port: ${argv.port}`);
        if (argv.title) console.log(`  Title: ${argv.title}`);
@@ -164,7 +156,7 @@ async function main() {
      };
 
      // Start the server and wait for completion
-     const result = await startServer({
+     const serverPromise = startServer({
        port: argv.port,
        timeout: argv.timeout * 1000,
        verbose: argv.verbose,
@@ -173,19 +165,35 @@ async function main() {
        shutdownOnSave: argv.shutdownOnSave
      });
 
+    // Give server a moment to start before opening browser
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Display URL to user BEFORE opening browser
+    console.log(`\n🚀 VoidWriter started`);
+    console.log(`📍 URL: http://localhost:${argv.port}/`);
+    console.log(`⏱️  Timeout: ${argv.timeout} seconds`);
+    if (argv.shutdownOnSave) {
+      console.log(`💾 Auto-shutdown: enabled (will terminate on save)`);
+    }
+    console.log(`\nWaiting for input...\n`);
+
     // Open browser if requested
     if (!argv.noOpen && !argv.headless) {
       try {
         await open(`http://localhost:${argv.port}`);
-      } catch (err) {
         if (argv.verbose) {
-          console.error('Could not open browser automatically');
-          console.log(`Please visit: http://localhost:${argv.port}`);
+          console.log(`✓ Browser opened automatically`);
         }
+      } catch (err) {
+        console.error('⚠️  Could not open browser automatically');
+        console.log(`   Please visit: http://localhost:${argv.port}/`);
       }
-    } else if (argv.verbose) {
-      console.log(`Server available at: http://localhost:${argv.port}`);
+    } else if (argv.noOpen) {
+      console.log(`ℹ️  Browser auto-open disabled. Visit: http://localhost:${argv.port}/`);
     }
+
+    // Wait for server to complete
+    const result = await serverPromise;
 
     // Wait for server to return result
     const output = {
