@@ -1,0 +1,67 @@
+{
+  "name": "voidwriter",
+  "version": "2.0.0",
+  "description": "CLI tool for capturing user input through an immersive 3D typing experience",
+  "type": "module",
+  "main": "voidwriter.js",
+  "bin": {
+    "voidwriter": "./voidwriter.js"
+  },
+  "keywords": [
+    "cli",
+    "input",
+    "typing",
+    "3d",
+    "interactive",
+    "three.js",
+    "react",
+    "text-editor"
+  ],
+  "author": "VoidWriter Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nealriley/voidwriter.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:cli": "tsc && vite build --mode production",
+    "start": "node voidwriter.js",
+    "test": "node test-suite.mjs",
+    "test:demo": "bash test-logging-demo.sh",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "@fontsource/orbitron": "^5.2.6",
+    "@fontsource/press-start-2p": "^5.2.6",
+    "@react-spring/three": "^10.0.1",
+    "@react-three/drei": "^10.6.1",
+    "@react-three/fiber": "^9.3.0",
+    "express": "^4.18.2",
+    "npm": "^11.6.3",
+    "open": "^9.1.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "three": "^0.179.1",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@types/three": "^0.179.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

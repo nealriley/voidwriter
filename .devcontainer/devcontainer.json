@@ -10,7 +10,7 @@
       "onAutoForward": "openBrowser"
     }
   },
-  "postCreateCommand": "npm ci || npm install",
+  "postCreateCommand": "cd writer && (npm ci || npm install) && npm run build:cli",
   // "remoteUser": "vscode",
   "customizations": {
     "vscode": {

@@ -5,6 +5,37 @@ import { useSpring, animated, config } from '@react-spring/three';
 import * as THREE from 'three';
 import './App.css';
 
+interface UIConfig {
+  title?: string | null;
+  mainText?: string | null;
+  subText?: string | null;
+}
+
+/**
+ * Hook to access UI configuration from window.voidwriterConfig
+ * Falls back to defaults if not set by server
+ */
+function useUIConfig(): UIConfig {
+  const [config, setConfig] = useState<UIConfig>({
+    title: null,
+    mainText: null,
+    subText: null
+  });
+
+  useEffect(() => {
+    // Check if window.voidwriterConfig was injected by server
+    const injectedConfig = (window as any).voidwriterConfig || {};
+    
+    setConfig({
+      title: injectedConfig.title || null,
+      mainText: injectedConfig.mainText || null,
+      subText: injectedConfig.subText || null
+    });
+  }, []);
+
+  return config;
+}
+
 interface Word {
   id: number;
   text: string;
@@ -391,7 +422,8 @@ function ScorePopupEffect({
 
 
 function SpaceInvadersApp() {
-  const [currentWord, setCurrentWord] = useState(() => {
+   const uiConfig = useUIConfig();
+   const [currentWord, setCurrentWord] = useState(() => {
     // Load saved current word from localStorage
     return localStorage.getItem('voidwriter-current') || '';
   });
@@ -443,6 +475,7 @@ function SpaceInvadersApp() {
   const lastWordAddedTimeRef = useRef(Date.now());
   const autoCleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const instructionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSubmitToCLIRef = useRef<(() => Promise<void>) | null>(null);
 
   const findNextPosition = useCallback((existingWords: Word[]) => {
     const occupied = new Set(
@@ -750,6 +783,15 @@ function SpaceInvadersApp() {
   }, [textBuffer]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Ctrl+Enter (or Cmd+Enter on Mac): Submit to CLI
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      if (handleSubmitToCLIRef.current) {
+        handleSubmitToCLIRef.current();
+      }
+      return;
+    }
+
     if (event.key === 'Escape') {
       event.preventDefault();
       
@@ -962,32 +1004,136 @@ function SpaceInvadersApp() {
     showFeedback('SAVED');
   }, [textBuffer, showFeedback]);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(textBuffer.join(' '));
-    showFeedback('COPIED');
-  }, [textBuffer, showFeedback]);
+   const handleCopy = useCallback(() => {
+     navigator.clipboard.writeText(textBuffer.join(' '));
+     showFeedback('COPIED');
+   }, [textBuffer, showFeedback]);
+
+   /**
+    * Save buffer using /api/save endpoint
+    * Supports three modes: return, disk, both
+    */
+   const handleSaveBuffer = useCallback(async () => {
+     try {
+       if (textBuffer.length === 0 && !currentWord) {
+         showFeedback('NOTHING TO SAVE');
+         return;
+       }
+
+       const fullText = textBuffer.join(' ') + (currentWord ? ' ' + currentWord : '');
+       const wordCount = textBuffer.length + (currentWord ? 1 : 0);
+       
+       // Send to server API
+       const response = await fetch('/api/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           buffer: fullText,
+           metadata: {
+             wordCount,
+             sessionDuration: Date.now() - lastWordAddedTimeRef.current,
+             avgWPM: performance.averageInterval > 0 
+               ? Math.round((60000 / performance.averageInterval) * (wordCount / 1))
+               : 0,
+             peakCombo: performance.combo,
+             timestamp: new Date().toISOString()
+           }
+         })
+       });
+
+       if (response.ok) {
+         const result = await response.json();
+         if (result.success) {
+           showFeedback('SAVED');
+         } else {
+           showFeedback('SAVE FAILED');
+         }
+       } else {
+         showFeedback('SAVE FAILED');
+       }
+     } catch (error) {
+       console.error('Failed to save:', error);
+       showFeedback('SAVE ERROR');
+     }
+   }, [textBuffer, currentWord, performance, showFeedback]);
+
+  /**
+   * Submit writing to CLI parent process via API
+   * This enables integration with agentic CLI tools
+   */
+  const handleSubmitToCLI = useCallback(async () => {
+    try {
+      if (textBuffer.length === 0 && !currentWord) {
+        showFeedback('NOTHING TO SUBMIT');
+        return;
+      }
+
+      const fullText = textBuffer.join(' ') + (currentWord ? ' ' + currentWord : '');
+      const wordCount = textBuffer.length + (currentWord ? 1 : 0);
+      
+      // Send to server API
+      const response = await fetch('/api/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: true,
+          text: fullText,
+          metadata: {
+            wordCount,
+            sessionDuration: Date.now() - lastWordAddedTimeRef.current,
+            avgWPM: performance.averageInterval > 0 
+              ? Math.round((60000 / performance.averageInterval) * (wordCount / 1))
+              : 0,
+            peakCombo: performance.combo,
+            timestamp: new Date().toISOString(),
+            cancelled: false
+          }
+        })
+      });
+
+      if (response.ok) {
+        showFeedback('SUBMITTED');
+        // Give visual feedback before closing
+        setTimeout(() => {
+          if (window.close) {
+            window.close();
+          }
+        }, 500);
+      } else {
+        showFeedback('SUBMIT FAILED');
+      }
+    } catch (error) {
+      console.error('Failed to submit:', error);
+      showFeedback('SUBMIT ERROR');
+    }
+  }, [textBuffer, currentWord, performance, showFeedback]);
+
+  // Update the ref whenever handleSubmitToCLI changes
+  useEffect(() => {
+    handleSubmitToCLIRef.current = handleSubmitToCLI;
+  }, [handleSubmitToCLI]);
 
   return (
     <div className="app" style={{ background: '#000' }}>
       
-      {/* SKYWRITER Logo/Title */}
-      <div 
-        className="pixelated"
-        style={{
-          position: 'absolute',
-          top: '7%',
-          left: '7%',
-          color: '#00ff00',
-          fontSize: '20px',
-          fontFamily: '"Press Start 2P", monospace',
-          textShadow: '0 0 20px #00ff00, 0 0 40px #00ff00',
-          letterSpacing: '3px',
-          zIndex: 100,
-          animation: 'pulse 2s ease-in-out infinite'
-        }}
-      >
-        SKYWRITER
-      </div>
+       {/* SKYWRITER Logo/Title */}
+       <div 
+         className="pixelated"
+         style={{
+           position: 'absolute',
+           top: '7%',
+           left: '7%',
+           color: '#00ff00',
+           fontSize: '20px',
+           fontFamily: '"Press Start 2P", monospace',
+           textShadow: '0 0 20px #00ff00, 0 0 40px #00ff00',
+           letterSpacing: '3px',
+           zIndex: 100,
+           animation: 'pulse 2s ease-in-out infinite'
+         }}
+       >
+         {uiConfig.title || 'SKYWRITER'}
+       </div>
       
       {/* Action Feedback Messages */}
       {actionFeedback.map(feedback => (
@@ -1010,49 +1156,51 @@ function SpaceInvadersApp() {
         </div>
       ))}
       
-      {/* Instruction Text for Empty State */}
-      {showInstructions && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          textAlign: 'center',
-          zIndex: 90,
-          animation: 'instructionFade 4s ease-in-out infinite',
-          pointerEvents: 'none'
-        }}>
-          <div 
-            className="pixelated"
-            style={{
-              color: '#66ff66',
-              fontSize: '14px',
-              fontFamily: '"Press Start 2P", monospace',
-              textShadow: '0 0 8px rgba(102, 255, 102, 0.5)',
-              marginBottom: '20px',
-              opacity: 0.8,
-              letterSpacing: '1px',
-              lineHeight: '1.8'
-            }}
-          >
-            START TYPING TO BEGIN
-          </div>
-          <div 
-            className="pixelated"
-            style={{
-              color: '#44cc44',
-              fontSize: '10px',
-              fontFamily: '"Press Start 2P", monospace',
-              textShadow: '0 0 6px rgba(68, 204, 68, 0.4)',
-              opacity: 0.6,
-              letterSpacing: '0.5px',
-              lineHeight: '1.6'
-            }}
-          >
-            WRITE FREELY IN SKYWRITER
-          </div>
-        </div>
-      )}
+       {/* Instruction Text for Empty State */}
+       {showInstructions && (
+         <div style={{
+           position: 'absolute',
+           top: '50%',
+           left: '50%',
+           transform: 'translate(-50%, -50%)',
+           textAlign: 'center',
+           zIndex: 90,
+           animation: 'instructionFade 4s ease-in-out infinite',
+           pointerEvents: 'none'
+         }}>
+           {/* Dynamic Main Text or Default Instructions */}
+           <div 
+             className="pixelated"
+             style={{
+               color: '#66ff66',
+               fontSize: '14px',
+               fontFamily: '"Press Start 2P", monospace',
+               textShadow: '0 0 8px rgba(102, 255, 102, 0.5)',
+               marginBottom: '20px',
+               opacity: 0.8,
+               letterSpacing: '1px',
+               lineHeight: '1.8'
+             }}
+           >
+             {uiConfig.mainText || 'START TYPING TO BEGIN'}
+           </div>
+           {/* Dynamic Sub Text or Default Instructions */}
+           <div 
+             className="pixelated"
+             style={{
+               color: '#44cc44',
+               fontSize: '10px',
+               fontFamily: '"Press Start 2P", monospace',
+               textShadow: '0 0 6px rgba(68, 204, 68, 0.4)',
+               opacity: 0.6,
+               letterSpacing: '0.5px',
+               lineHeight: '1.6'
+             }}
+           >
+             {uiConfig.subText || 'WRITE FREELY IN SKYWRITER'}
+           </div>
+         </div>
+       )}
       
       {/* Arcade-style SCORE display in bottom-right */}
       <div 
@@ -1114,19 +1262,22 @@ function SpaceInvadersApp() {
       </div>
       
       {/* Only show sidebar when there's text */}
-      {textBuffer.length > 0 && (
-        <div className="sidebar">
-          <button className="button download-button" onClick={handleDownload}>
-            <i className="fas fa-download"></i>
-          </button>
-          <button className="button copy-button" onClick={handleCopy}>
-            <i className="fas fa-copy"></i>
-          </button>
-          <button className="button clear-button" onClick={clearAll}>
-            <i className="fas fa-trash"></i>
-          </button>
-        </div>
-      )}
+       {textBuffer.length > 0 && (
+         <div className="sidebar">
+           <button className="button download-button" onClick={handleDownload}>
+             <i className="fas fa-download"></i>
+           </button>
+           <button className="button copy-button" onClick={handleCopy}>
+             <i className="fas fa-copy"></i>
+           </button>
+           <button className="button save-button" onClick={handleSaveBuffer}>
+             <i className="fas fa-save"></i>
+           </button>
+           <button className="button clear-button" onClick={clearAll}>
+             <i className="fas fa-trash"></i>
+           </button>
+         </div>
+       )}
       
       {/* Game Canvas */}
       <div style={{ 
