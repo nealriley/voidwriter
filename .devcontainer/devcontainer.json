@@ -1,8 +1,5 @@
 {
   "name": "voidwriter - Dev Container",
-  // "build": {
-  //   "dockerfile": "Dockerfile"
-  // },
   "forwardPorts": [5173],
   "portsAttributes": {
     "5173": {
